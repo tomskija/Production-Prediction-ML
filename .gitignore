@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# Data (keep data/ dir but ignore raw files — add your own)
+data/*.xlsx
+data/*.csv
+data/*.xls
+
+# Results (generated at runtime)
+z_Feature_Selection_*/
+z_Production_*/
+results/
+
+# Environment
+.env
+*.env
+
+# VS Code
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+Jupyter Notebooks
