@@ -47,6 +47,26 @@ All 7 methods achieve R² > 99% and RMSE < 1.1% after tuning. GMM-based methods 
 
 ---
 
+## Citation
+
+This workflow originated from graduate research at the University of Texas at Austin and was extended into a published book chapter.
+
+**Master's Thesis**
+```
+Tomski, J.R. (2020). Unconventional reservoir parameter estimation by seismic inversion
+and machine learning of the Bakken Formation, North Dakota.
+Master's Thesis, University of Texas at Austin.
+```
+
+**Book Chapter**
+```
+Tomski, J.R. et al. (2024). Enhanced artificial intelligence workflow for predicting production
+within the Bakken formation. In Developments in Structural Geology and Tectonics (Vol. 6, pp. 83–139).
+Elsevier. https://doi.org/10.1016/B978-0-32-399593-1.00016-1
+```
+
+---
+
 ## Project Structure
 
 ```
