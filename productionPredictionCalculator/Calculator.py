@@ -1,5 +1,5 @@
 ##########################################################
-import asyncio
+import json
 import pandas as pd
 from utils.utils import (
     checkData,
@@ -17,10 +17,10 @@ from utils.utils import (
 from os.path import dirname, join
 
 ##########################################################
-async def calculate(df=[]):
+def calculate(df=[], inJson={}):
     ######################################################
     try:
-        inputData = checkData()
+        inputData = checkData(inJson=inJson)
         path_db = setup_output_directory(name=inputData['name'], problemfolder_db=inputData['problemfolder_db'])
         df = load_and_clean_data(df=df)
         df = feature_engineering(df_data1=df, min_pred_norm=inputData['min_pred_norm'], max_pred_norm=inputData['max_pred_norm'], min_target_norm=inputData['min_target_norm'], max_target_norm=inputData['max_target_norm'], path_db=path_db, plot=inputData['plot'])
@@ -42,15 +42,14 @@ async def calculate(df=[]):
     return "Success"
 
 ##########################################################
-async def main():
+def main():
     thisDirName = dirname(__file__)
     fileName    = "Data/Unconventional_Synthetic_Dataset.csv"
-    response    = await calculate(df=pd.read_csv(join(thisDirName, fileName)))
+    with open(join(thisDirName, "tests/testOrg.json")) as json_file:
+        inJson = json.load(json_file)
+    response = calculate(df=pd.read_csv(join(thisDirName, fileName)), inJson=inJson)
     print(response)
 
 ##########################################################
-if __name__ == "__main__":
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(main())
-    print("Done")
+if __name__ == "__main__": main()
 ##########################################################
