@@ -1,9 +1,8 @@
 {
-  "name": "rf-production-prediction",
+  "name": "production-prediction",
   "dockerComposeFile": "../docker-compose.yml",
   "service": "jupyter",
   "workspaceFolder": "/workspace",
-
   "customizations": {
     "vscode": {
       "extensions": [
@@ -23,10 +22,9 @@
       }
     }
   },
-
-  "forwardPorts": [8888],
-
+  "forwardPorts": [
+    8888
+  ],
   "postCreateCommand": "pip install --no-cache-dir -r requirements.txt",
-
   "remoteUser": "root"
 }

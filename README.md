@@ -73,7 +73,7 @@ Elsevier. https://doi.org/10.1016/B978-0-32-399593-1.00016-1
 Production-Prediction-ML/
 ├── .devcontainer/
 │   └── devcontainer.json
-├── data/
+├── Data/
 │   └── README.md               # Dataset placement instructions
 ├── notebooks/
 │   └── Production_Prediction_Workflow_Using_Various_Sampling_Methods.ipynb
