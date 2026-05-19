@@ -21,42 +21,37 @@ warnings.filterwarnings('ignore')
 sns.set(font_scale=0.8)
 
 ############################################################################################
-def checkData(InputData=[]):
+def checkData(inJson=[]):
     ########################################################################################
-    InputData = {
-        # Output directory
-        'name':                      'Production_Results',
-        'problemfolder_db':          'Figures and Results',
-        # Feature engineering
-        'min_pred_norm':             -1.3875,
-        'max_pred_norm':              1.3875,
-        'min_target_norm':            0.005,
-        'max_target_norm':            0.995,
-        'plot':                       True,
-        # Feature information
-        'fi_random_state':            5195,
-        'fi_n_estimators':            100,
-        'fi_max_depth':               25,
-        'fi_max_features':            3,
-        # Clustering
-        'n_range':                    range(2, 30),
-        'kmeans_random_state_range':  range(0, 50),
-        'gmm_random_state_range':     range(0, 50),
-        # RF features
-        'predictive_features':        ['Por', 'Brittle', 'Latitude', 'Longitude'],
-        'target_feature':             'Production',
-        # RF seed sweep
-        'split_seed_range':           range(0, 100),
-        'rf_seed_range':              range(0, 100),
-        # Hyperparameter tuning
-        'run_sampling_split':         True,
-        'run_test':                   False,
-        # Plot RF results
-        'min_plot':                  -1.5,
-        'max_plot':                   1.5,
+    p = {item['name']: item['value'] for item in inJson['data']['params']}
+    t = {item['name']: item['values'] for item in inJson['data']['tables']}
+    ########################################################################################
+    inputData = {
+        'name':                      p['name'],
+        'problemfolder_db':          p['problemfolder_db'],
+        'min_pred_norm':             p['min_pred_norm'],
+        'max_pred_norm':             p['max_pred_norm'],
+        'min_target_norm':           p['min_target_norm'],
+        'max_target_norm':           p['max_target_norm'],
+        'plot':                      bool(p['plot']),
+        'fi_random_state':           p['fi_random_state'],
+        'fi_n_estimators':           p['fi_n_estimators'],
+        'fi_max_depth':              p['fi_max_depth'],
+        'fi_max_features':           p['fi_max_features'],
+        'n_range':                   range(p['n_range_start'],                   p['n_range_end']),
+        'kmeans_random_state_range': range(p['kmeans_random_state_range_start'], p['kmeans_random_state_range_end']),
+        'gmm_random_state_range':    range(p['gmm_random_state_range_start'],    p['gmm_random_state_range_end']),
+        'predictive_features':       t['predictive_features'],
+        'target_feature':            p['target_feature'],
+        'split_seed_range':          range(p['split_seed_range_start'],          p['split_seed_range_end']),
+        'rf_seed_range':             range(p['rf_seed_range_start'],             p['rf_seed_range_end']),
+        'run_sampling_split':        bool(p['run_sampling_split']),
+        'run_test':                  bool(p['run_test']),
+        'min_plot':                  p['min_plot'],
+        'max_plot':                  p['max_plot'],
     }
     ########################################################################################
-    return InputData
+    return inputData
 
 ############################################################################################
 def setup_output_directory(name='Production_Results', problemfolder_db='z_Feature_Selection'):
