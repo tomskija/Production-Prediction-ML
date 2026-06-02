@@ -18,5 +18,5 @@ RUN pip install --no-cache-dir --upgrade pip \
 # Copy application source
 COPY productionPredictionCalculator/ ./productionPredictionCalculator/
 
-# Default: run the calculator pipeline
-CMD ["python", "productionPredictionCalculator/Calculator.py"]
+# Keep container alive for devcontainer use — run script manually
+CMD ["sleep", "infinity"]

@@ -25,6 +25,6 @@
       "onAutoForward": "notify"
     }
   },
-  "postCreateCommand": "pip install --no-cache-dir -r requirements.txt",
+  "postCreateCommand": "",
   "remoteUser": "root"
 }

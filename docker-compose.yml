@@ -13,26 +13,28 @@ services:
     environment:
       - MLFLOW_TRACKING_URI=http://mlflow:5000
     depends_on:
-      - mlflow
+      mlflow:
+        condition: service_healthy
     restart: "no"
     networks:
       - ml-network
 
   mlflow:
-    image: python:3.11-slim
+    build:
+      context: .
+      dockerfile: Dockerfile.mlflow
     container_name: mlflow-server
-    command: >
-      bash -c "pip install mlflow==2.13.2 --quiet &&
-               mlflow server
-               --host 0.0.0.0
-               --port 5000
-               --backend-store-uri /mlruns
-               --default-artifact-root /mlruns"
     ports:
       - "5000:5000"
     volumes:
       - mlruns:/mlruns
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
     networks:
       - ml-network
 

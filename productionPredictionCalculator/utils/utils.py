@@ -17,6 +17,9 @@ from sklearn.model_selection import train_test_split
 from joblib import Parallel, delayed
 from tqdm import tqdm
 ############################################################################################
+import mlflow
+import mlflow.sklearn
+############################################################################################
 from utils.shap_analysis import run_shap_analysis
 ############################################################################################
 warnings.filterwarnings('ignore')
@@ -407,6 +410,27 @@ def random_forest_prod_prediction(split_seed=0, random_seed=0, max_depth=10, num
     rf_Var_Explained_test  = float(explained_variance_score(y_test, y_pred_test) * 100)
     rf_r2_test             = float(r2_score(y_test, y_pred_test) * 100)
     ########################################################################################
+    # MLflow: log params and metrics for this RF run (nested under parent run if active)
+    with mlflow.start_run(nested=True, run_name=f"rf_{sampling_method}_ss{split_seed}_rs{random_seed}"):
+        mlflow.log_params({
+            'sampling_method': sampling_method,
+            'split_seed':      split_seed,
+            'random_seed':     random_seed,
+            'max_depth':       max_depth,
+            'num_trees':       num_trees_rf,
+            'max_features':    max_features,
+        })
+        mlflow.log_metrics({
+            'r2_train':       round(rf_r2_train,            3),
+            'r2_test':        round(rf_r2_test,             3),
+            'rmse_train':     round(rf_RMSE_train,          3),
+            'rmse_test':      round(rf_RMSE_test,           3),
+            'mape_train':     round(rf_mape_train,          3),
+            'mape_test':      round(rf_mape_test,           3),
+            'var_exp_train':  round(rf_Var_Explained_train, 3),
+            'var_exp_test':   round(rf_Var_Explained_test,  3),
+        })
+    ########################################################################################
     str07 = f"Training RMSE: {round(rf_RMSE_train, 3)}% , MAPE: {round(rf_mape_train, 3)}% , Exp_var: {round(rf_Var_Explained_train, 3)}% , R^2: {round(rf_r2_train, 3)}%"
     str08 = f"Testing  RMSE: {round(rf_RMSE_test, 3)}%  , MAPE: {round(rf_mape_test, 3)}% , Exp_var: {round(rf_Var_Explained_test, 3)}% , R^2: {round(rf_r2_test, 3)}%"
     ########################################################################################
@@ -462,6 +486,14 @@ def find_best_rf_seeds(predictive_features=[], target_feature='Production', Arra
     print(f"Best split_seed: {best_split_seed} | Best rf_seed: {best_rf_seed} | Best R2: {round(best_r2, 3)}%")
     ########################################################################################
     p = dict(split_seed=best_split_seed, rf_seed=best_rf_seed, max_depth=10, num_trees=50, max_features=len(predictive_features), print_str=print_str)
+    ########################################################################################
+    # MLflow: log best seed sweep results to the active parent run
+    if mlflow.active_run():
+        mlflow.log_params({
+            'best_split_seed': best_split_seed,
+            'best_rf_seed':    best_rf_seed,
+        })
+        mlflow.log_metric('best_seed_r2', round(best_r2, 3))
     ########################################################################################
     str01 = f"sampling_method:  {sampling_method}"
     str02 = f"best_split_seed:  {p['split_seed']}"
@@ -613,6 +645,19 @@ def hyperparameter_tuning(p={}, path_db='', ArrayVals=[], sampling_method='Rando
     print(f"Results achieved with max_features of:               {p['max_features']}")
     print(f"\nFor max tree depth     - max exp variance: {exp_var_max_max_depths}%  | min RMSE: {rmse_min_max_depths}%")
     print(f"For num trees averaged - max exp variance: {exp_var_max_num_trees}% | min RMSE: {rmse_min_num_trees}%")
+    ########################################################################################
+    # MLflow: log final tuned hyperparameters and best metric results to active parent run
+    if mlflow.active_run():
+        mlflow.log_params({
+            'tuned_max_depth':  max_depth_save_state,
+            'tuned_num_trees':  num_trees_save_state,
+        })
+        mlflow.log_metrics({
+            'tuned_max_exp_var_depth': float(exp_var_max_max_depths),
+            'tuned_min_rmse_depth':    float(rmse_min_max_depths),
+            'tuned_max_exp_var_trees': float(exp_var_max_num_trees),
+            'tuned_min_rmse_trees':    float(rmse_min_num_trees),
+        })
     ########################################################################################
     return df_hpt_rf, max_depth_save_state, num_trees_save_state
 
