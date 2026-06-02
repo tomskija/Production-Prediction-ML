@@ -17,6 +17,8 @@ from sklearn.model_selection import train_test_split
 from joblib import Parallel, delayed
 from tqdm import tqdm
 ############################################################################################
+from utils.shap_analysis import run_shap_analysis
+############################################################################################
 warnings.filterwarnings('ignore')
 sns.set(font_scale=0.8)
 
@@ -50,8 +52,9 @@ def checkData(inJson=[]):
         'min_plot':                  p['min_plot'],
         'max_plot':                  p['max_plot'],
     }
+    parameters_rf = inputData['predictive_features'] + [inputData['target_feature']]
     ########################################################################################
-    return inputData
+    return inputData, parameters_rf
 
 ############################################################################################
 def setup_output_directory(name='Production_Results', problemfolder_db='z_Feature_Selection'):
@@ -75,7 +78,10 @@ def load_and_clean_data(df=pd.DataFrame()):
     :param df: Raw input dataframe
     :return:   Cleaned dataframe with WellIndex dropped
     """
-    df = df.drop(columns=['WellIndex'])
+    try:
+        df = df.drop(columns=['WellIndex'])
+    except:
+        print("Nothing to drop")
     df = df.reset_index(drop=True)
     print(df.shape)
     return df
@@ -92,6 +98,8 @@ def feature_engineering(df_data1=pd.DataFrame(), min_pred_norm=-1.3875, max_pred
     :param plot:            Whether to plot before/after histograms
     :return:                Engineered and normalized dataset
     """
+    ########################################################################################
+    # df_data1 = load_and_clean_data(df=df_data1)
     ########################################################################################
     if plot:
         df_data1.hist(figsize=(10, 10))
@@ -161,7 +169,7 @@ def correlation_analysis(df=pd.DataFrame(), path_db=''):
     plt.tight_layout()
     plt.savefig(path_db + '/Rank_Correlation_Heatmap.png', bbox_inches='tight')
     ########################################################################################
-    plt.close('all')
+    # plt.close('all')
     ########################################################################################
     return correlation, rank_correlation, rank_correlation_pval, rank_correlation_scatter
 
@@ -203,6 +211,11 @@ def feature_information(df=pd.DataFrame(), path_db='', random_state=5195, n_esti
     plt.xlim([-1, x.shape[1]])
     plt.subplots_adjust(left=0.0, bottom=0.0, right=2.0, top=1., wspace=0.2, hspace=0.2)
     plt.savefig(path_db + '/Mutual_Info_and_Feature_Import.png', bbox_inches='tight')
+    ########################################################################################
+    plot_well_data(df=df, path_db=path_db)
+    ########################################################################################
+    a = 1; b = 1
+    return a, b
 
 ############################################################################################
 def plot_well_data(df=pd.DataFrame(), path_db=''):
@@ -708,5 +721,11 @@ def plot_rf_results(df=pd.DataFrame(), path_db='', ArrayVals=[], sampling_method
     fig.savefig(path_db + '/RF_Production_ScatterPlot.png', bbox_inches='tight')
     ########################################################################################
     return X_train20, X_test20, y_train20, y_test20
+
+############################################################################################
+def callSharpAnalysis(inputData={}, p={}, X_train20=[], X_test20=[], y_train20=[], path_db='', best_method=''):
+    final_rf = RandomForestRegressor(oob_score=True, max_depth=p['max_depth'], random_state=p['rf_seed'], n_estimators=p['num_trees'], max_features=p['max_features'])
+    final_rf.fit(X_train20, y_train20.ravel())
+    run_shap_analysis(regressor=final_rf, X_train=X_train20, X_test=X_test20, feature_names=inputData['predictive_features'], path_db=path_db, sampling_method=best_method)
 
 ############################################################################################

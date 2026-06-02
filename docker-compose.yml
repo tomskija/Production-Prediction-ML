@@ -1,15 +1,44 @@
 version: "3.8"
 
 services:
-  jupyter:
+
+  calculator:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: rf-production-prediction
-    ports:
-      - "8888:8888"
     volumes:
       - .:/workspace
+      - mlruns:/workspace/mlruns
     environment:
-      - JUPYTER_ENABLE_LAB=yes
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+    depends_on:
+      - mlflow
+    restart: "no"
+    networks:
+      - ml-network
+
+  mlflow:
+    image: python:3.11-slim
+    container_name: mlflow-server
+    command: >
+      bash -c "pip install mlflow==2.13.2 --quiet &&
+               mlflow server
+               --host 0.0.0.0
+               --port 5000
+               --backend-store-uri /mlruns
+               --default-artifact-root /mlruns"
+    ports:
+      - "5000:5000"
+    volumes:
+      - mlruns:/mlruns
     restart: unless-stopped
+    networks:
+      - ml-network
+
+volumes:
+  mlruns:
+
+networks:
+  ml-network:
+    driver: bridge
