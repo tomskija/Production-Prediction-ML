@@ -104,26 +104,25 @@ def analyzeAndSelectFeatures(
     y_encoded    = lab_enc.fit_transform(y)
     ########################################################################################
     # Pearson correlation
-    pearson = np.abs(df.corr()[target_feature].drop(target_feature).values)
+    pearson          = np.abs(df.corr()[target_feature].drop(target_feature).values)
     # Spearman rank correlation
     rank_corr_mat, _ = stats.spearmanr(df)
     rank_corr        = np.abs(rank_corr_mat[:, -1][:-1])
     # Mutual information
-    mi        = mutual_info_regression(x, np.ravel(y_encoded), random_state=random_state)
-    mi_norm   = mi / np.max(mi) if np.max(mi) > 0 else mi
+    mi               = mutual_info_regression(x, np.ravel(y_encoded), random_state=random_state)
+    mi_norm          = mi / np.max(mi) if np.max(mi) > 0 else mi
     # RF feature importance
-    rf          = RandomForestRegressor(oob_score=True, max_depth=max_depth, random_state=random_state, n_estimators=n_estimators, max_features=max_features)
+    rf               = RandomForestRegressor(oob_score=True, max_depth=max_depth, random_state=random_state, n_estimators=n_estimators, max_features=max_features)
     rf.fit(x, np.ravel(y_encoded))
-    importances = rf.feature_importances_
-    std         = np.std([tree.feature_importances_ for tree in rf.estimators_], axis=0)
+    importances      = rf.feature_importances_
+    std              = np.std([tree.feature_importances_ for tree in rf.estimators_], axis=0)
     ########################################################################################
-    # Correlation heatmaps (always saved)
+    # Correlation heatmaps
     plt.figure(figsize=(16, 10))
     sns.heatmap(df.corr(), annot=True, linewidth=0, vmin=-1, square=True)
     plt.title("Correlation Heatmap: Features and Response", size=18)
     plt.tight_layout()
     plt.savefig(path_db + '/Correlation_Heatmap.png', bbox_inches='tight')
-    # plt.close()
     rank_corr_full, _ = stats.spearmanr(df)
     plt.figure(figsize=(16, 10))
     tick_labels = df.columns.tolist()
@@ -131,8 +130,7 @@ def analyzeAndSelectFeatures(
     plt.title("Rank Correlation Heatmap: Features and Response", size=18)
     plt.tight_layout()
     plt.savefig(path_db + '/Rank_Correlation_Heatmap.png', bbox_inches='tight')
-    # plt.close()
-    # MI and feature importance bar charts (always saved)
+    # MI and feature importance bar charts
     indices_mi  = np.argsort(mi_norm)[::-1]
     indices_imp = np.argsort(importances)[::-1]
     plt.figure(figsize=(12, 6))
@@ -148,7 +146,8 @@ def analyzeAndSelectFeatures(
     plt.xlim([-1, x.shape[1]])
     plt.subplots_adjust(left=0.0, bottom=0.0, right=2.0, top=1., wspace=0.2, hspace=0.2)
     plt.savefig(path_db + '/Mutual_Info_and_Feature_Import.png', bbox_inches='tight')
-    # plt.close()
+    ########################################################################################
+    plot_well_data(df=df, path_db=path_db)
     ########################################################################################
     # User mode: return user-supplied features as-is with summary figure
     if not auto_select_features:
@@ -165,9 +164,8 @@ def analyzeAndSelectFeatures(
     print(f"Average normalised MI  : {round(avg_mi, 4)} | threshold : {mi_threshold}")
     if avg_mi >= mi_threshold:
         # Rank ensemble path
-        selection_mode = 'rank_ensemble'
-        ranks = (rankArray(arr=pearson) + rankArray(arr=rank_corr) + rankArray(arr=mi_norm) + rankArray(arr=importances))
-        # Cumulative explained variance on rank scores to pick n_features
+        selection_mode    = 'rank_ensemble'
+        ranks             = (rankArray(arr=pearson) + rankArray(arr=rank_corr) + rankArray(arr=mi_norm) + rankArray(arr=importances))
         sorted_ranks      = np.sort(ranks)[::-1]
         cumulative        = np.cumsum(sorted_ranks) / np.sum(sorted_ranks)
         n_features_auto   = int(np.searchsorted(cumulative, variance_threshold)) + 1
@@ -185,9 +183,8 @@ def analyzeAndSelectFeatures(
         n_components   = max(1, min(n_components, len(feature_cols)))
         pca_final      = PCA(n_components=n_components, random_state=random_state)
         pc_values      = pca_final.fit_transform(x)
-        loadings       = pca_final.components_  # shape: (n_components, n_features)
-        # Build abbreviated PC column names from top-loading original features
-        pc_col_names = []
+        loadings       = pca_final.components_
+        pc_col_names   = []
         for i, loading_vec in enumerate(loadings):
             abs_loads   = np.abs(loading_vec)
             top_idx     = np.argsort(abs_loads)[::-1][:3]
@@ -197,7 +194,6 @@ def analyzeAndSelectFeatures(
         pc_df             = pd.DataFrame(pc_values, columns=pc_col_names, index=df.index)
         df_selected       = pd.concat([pc_df, df[[target_feature]].reset_index(drop=True)], axis=1)
         selected_features = pc_col_names
-        # PCA explained variance plot
         if plot:
             plt.figure(figsize=(8, 4))
             plt.bar(range(1, n_components + 1), pca_final.explained_variance_ratio_ * 100, color='steelblue')
@@ -207,12 +203,11 @@ def analyzeAndSelectFeatures(
             plt.title(f'PCA Explained Variance — {n_components} components selected')
             plt.legend(); plt.tight_layout()
             plt.savefig(path_db + '/PCA_Explained_Variance.png', bbox_inches='tight')
-            # plt.close()
         print(f"Feature selection mode : {selection_mode}")
         print(f"Selected features      : {selected_features}")
         saveSelectionSummary(feature_cols=feature_cols, pearson=pearson, rank_corr=rank_corr, mi_norm=mi_norm, importances=importances, selected_features=selected_features, path_db=path_db, selection_mode=selection_mode)
         return df_selected, selected_features, selection_mode
-    # Rank ensemble: slice original features
+    ########################################################################################
     df_selected = df[selected_features + [target_feature]].copy()
     print(f"Feature selection mode : {selection_mode}")
     print(f"Selected features      : {selected_features}")
@@ -505,14 +500,7 @@ def random_forest_prod_prediction(split_seed=0, random_seed=0, max_depth=10, num
     ########################################################################################
     # MLflow: log params and metrics for this RF run (nested under parent run if active)
     with mlflow.start_run(nested=True, run_name=f"rf_{sampling_method}_ss{split_seed}_rs{random_seed}"):
-        mlflow.log_params({
-            'sampling_method': sampling_method,
-            'split_seed':      split_seed,
-            'random_seed':     random_seed,
-            'max_depth':       max_depth,
-            'num_trees':       num_trees_rf,
-            'max_features':    max_features,
-        })
+        mlflow.log_params({'sampling_method': sampling_method, 'split_seed': split_seed, 'random_seed': random_seed, 'max_depth': max_depth, 'num_trees': num_trees_rf, 'max_features': max_features})
         mlflow.log_metrics({
             'r2_train':       round(rf_r2_train,            3),
             'r2_test':        round(rf_r2_test,             3),
@@ -571,10 +559,14 @@ def find_best_rf_seeds(predictive_features=[], target_feature='Production', Arra
     ########################################################################################
     print("Sweeping RF split and random seeds...")
     seed_results = Parallel(n_jobs=-1)(delayed(eval_rf_seeds)(split_seed=ss, rf_seed=rs) for ss in tqdm(split_seed_range, desc='Sweeping split seeds') for rs in rf_seed_range)
-    best_r2 = -1;  best_split_seed = 0;  best_rf_seed = 0
+    best_r2 = -1
+    best_split_seed = 0
+    best_rf_seed = 0
     for r2, ss, rs in seed_results:
         if r2 > best_r2:
-            best_r2 = r2;  best_split_seed = ss;  best_rf_seed = rs
+            best_r2 = r2
+            best_split_seed = ss
+            best_rf_seed = rs
     ########################################################################################
     print(f"Best split_seed: {best_split_seed} | Best rf_seed: {best_rf_seed} | Best R2: {round(best_r2, 3)}%")
     ########################################################################################
@@ -582,10 +574,7 @@ def find_best_rf_seeds(predictive_features=[], target_feature='Production', Arra
     ########################################################################################
     # MLflow: log best seed sweep results to the active parent run
     if mlflow.active_run():
-        mlflow.log_params({
-            'best_split_seed': best_split_seed,
-            'best_rf_seed':    best_rf_seed,
-        })
+        mlflow.log_params({'best_split_seed': best_split_seed, 'best_rf_seed': best_rf_seed})
         mlflow.log_metric('best_seed_r2', round(best_r2, 3))
     ########################################################################################
     str01 = f"sampling_method:  {sampling_method}"
@@ -635,6 +624,7 @@ def run_single_seed(rnd00=0, run_sampling_split=True, p={}, path_db='', ArrayVal
             sampling_method=sampling_method, parameters_rf=parameters_rf)
     ########################################################################################
     return r2, var_exp, rmse, mape
+
 ###############################################################################
 def sweep_hyperparameter(param_values=[], fixed_depth=[], fixed_trees=[], mode='depth', desc='', p={}, path_db='', ArrayVals=[], sampling_method='', parameters_rf=[]):
     ########################################################################################

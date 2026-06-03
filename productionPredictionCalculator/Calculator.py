@@ -16,7 +16,6 @@ from utils.utils import (
     hyperparameter_tuning,
     plot_rf_results,
     callSharpAnalysis,
-    plot_well_data,
 )
 
 ###############################################################################
@@ -35,7 +34,6 @@ def calculate(inJson={}, localTesing=False):
             mlflow.log_params({'name': inputData['name'], 'target_feature': inputData['target_feature'], 'run_test': inputData['run_test'], 'run_sampling_split': inputData['run_sampling_split'], 'auto_select_features': inputData['auto_select_features'], 'mi_threshold': inputData['mi_threshold'], 'variance_threshold': inputData['variance_threshold']})
             df = feature_engineering(df_data1=df, min_pred_norm=inputData['min_pred_norm'], max_pred_norm=inputData['max_pred_norm'], min_target_norm=inputData['min_target_norm'], max_target_norm=inputData['max_target_norm'], path_db=path_db, plot=inputData['plot'])
             df, selected_features, selection_mode = analyzeAndSelectFeatures(df=df, path_db=path_db, target_feature=inputData['target_feature'], predictive_features=inputData['predictive_features'], auto_select_features=inputData['auto_select_features'], mi_threshold=inputData['mi_threshold'], variance_threshold=inputData['variance_threshold'], random_state=inputData['fi_random_state'], n_estimators=inputData['fi_n_estimators'], max_depth=inputData['fi_max_depth'], max_features=inputData['fi_max_features'], plot=inputData['plot'])
-            plot_well_data(df=df, path_db=path_db)
             mlflow.log_param('feature_selection_mode', selection_mode)
             mlflow.log_param('selected_features', str(selected_features))
             parameters_rf = selected_features + [inputData['target_feature']]
@@ -46,15 +44,15 @@ def calculate(inJson={}, localTesing=False):
             X_train20, X_test20, y_train20, y_test20 = plot_rf_results(df=df, path_db=path_db, ArrayVals=ArrayVals, sampling_method=best_method, parameters_rf=parameters_rf, p=p, min_plot=inputData['min_plot'], max_plot=inputData['max_plot'])
             callSharpAnalysis(inputData={**inputData, 'predictive_features': selected_features}, p=p, X_train20=X_train20, X_test20=X_test20, y_train20=y_train20, path_db=path_db, best_method=best_method)
             if os.path.exists(path_db): mlflow.log_artifacts(path_db, artifact_path='figures')
-            print("Completed Calculation")
+            ###################################################################
+            output_wrapper.add_param(name='best_sampling_method', value=best_method)
+            output_wrapper.add_table(name='selected_features', array=selected_features)
+        #######################################################################
+        print("Completed Calculation")
+        return output_wrapper
     except Exception as e:
         print("\nError Message: " + str(e) + "\n")
         return str(e)
-    ###########################################################################
-    output_wrapper.add_param(name='best_sampling_method', value=best_method)
-    output_wrapper.add_table(name='selected_features', array=selected_features)
-    ###########################################################################
-    return output_wrapper
 
 ###############################################################################
 def main():
