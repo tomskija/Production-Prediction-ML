@@ -1,9 +1,10 @@
 ############################################################################################
 import os
-import math
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
+import tensorflow_probability as tfp
+tfd = tfp.distributions
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -15,7 +16,6 @@ class BNN:
     """
     Generic Bayesian Neural Network — N inputs, M outputs, configurable hidden layers.
     Uses TensorFlow/Keras for forward pass and GradientTape for Langevin gradients.
-    MCMCSampler and plot_bnn_results are identical to the PyTorch version.
     """
     ########################################################################################
     def __init__(self, topology=[1, 9, 1]):
@@ -23,11 +23,13 @@ class BNN:
         :param topology: List [n_inputs, n_hidden, n_outputs] — extend to more hidden layers if needed
         """
         self.topology = topology
-        self.model    = self._build_model()
+        self.model    = self.build_model()
 
     ########################################################################################
-    def _build_model(self):
-        """Build Keras Sequential model from topology."""
+    def build_model(self):
+        """
+        Build Keras Sequential model from topology.
+        """
         layers = [keras.layers.Input(shape=(self.topology[0],))]
         for i in range(1, len(self.topology) - 1):
             layers.append(keras.layers.Dense(self.topology[i], activation='sigmoid'))
@@ -37,12 +39,16 @@ class BNN:
 
     ########################################################################################
     def encode(self):
-        """Flatten all weights and biases into a single 1D numpy vector."""
+        """
+        Flatten all weights and biases into a single 1D numpy vector.
+        """
         return np.concatenate([w.numpy().ravel() for w in self.model.trainable_weights])
 
     ########################################################################################
     def decode(self, w=None):
-        """Load a flat numpy weight vector back into the model weights."""
+        """
+        Load a flat numpy weight vector back into the model weights.
+        """
         idx = 0
         for weight in self.model.trainable_weights:
             size  = weight.numpy().size
@@ -52,7 +58,9 @@ class BNN:
 
     ########################################################################################
     def predict(self, x_np=None):
-        """Run forward pass on a numpy array, return numpy array."""
+        """
+        Run forward pass on a numpy array, return numpy array.
+        """
         x   = tf.constant(x_np, dtype=tf.float32)
         out = self.model(x, training=False)
         return out.numpy()
@@ -71,8 +79,8 @@ class BNN:
         :return:      Updated flat weight vector
         """
         self.decode(w=w)
-        x = tf.constant(x_np, dtype=tf.float32)
-        y = tf.constant(y_np, dtype=tf.float32)
+        x         = tf.constant(x_np, dtype=tf.float32)
+        y         = tf.constant(y_np, dtype=tf.float32)
         optimizer = keras.optimizers.SGD(learning_rate=lr)
         for _ in range(steps):
             with tf.GradientTape() as tape:
@@ -86,7 +94,7 @@ class BNN:
 class MCMCSampler:
     """
     Metropolis-Hastings MCMC sampler with optional Langevin gradient proposals.
-    Generic — works with any BNN topology. Identical to PyTorch version.
+    Uses tensorflow_probability.distributions.Normal for log likelihood and log prior.
     """
     ########################################################################################
     def __init__(self, bnn=None, use_langevin=True, langevin_prob=0.5, sigma_sq=25.0):
@@ -104,7 +112,9 @@ class MCMCSampler:
     ########################################################################################
     @staticmethod
     def metrics(predictions=None, targets=None):
-        """Compute R2, RMSE, MAPE for a set of predictions and targets."""
+        """
+        Compute R2, RMSE, MAPE for a set of predictions and targets.
+        """
         predictions = predictions.ravel()
         targets     = targets.ravel()
         ss_res      = np.sum((targets - predictions) ** 2)
@@ -117,17 +127,25 @@ class MCMCSampler:
 
     ########################################################################################
     def log_likelihood(self, x=None, y=None, w=None, tau_sq=None):
-        """Gaussian log likelihood of data given weights and noise variance tau_sq."""
-        pred      = self.bnn.predict(x_np=x)
-        residuals = y.ravel() - pred.ravel()
-        log_lik   = (-0.5 * np.sum(residuals ** 2) / tau_sq - 0.5 * len(residuals) * np.log(2 * math.pi * tau_sq))
+        """
+        Gaussian log likelihood using tfp.distributions.Normal.
+        p(y | w, tau) = Normal(pred, sqrt(tau_sq))
+        """
+        pred    = self.bnn.predict(x_np=x)
+        dist    = tfd.Normal(loc=pred.ravel().astype(np.float32), scale=np.float32(tau_sq ** 0.5))
+        log_lik = float(tf.reduce_sum(dist.log_prob(y.ravel().astype(np.float32))).numpy())
         return log_lik, pred
 
     ########################################################################################
     def log_prior(self, w=None, tau_sq=None):
-        """Log prior over weights (Gaussian) and tau (Jeffreys)."""
-        w_prior   = (-0.5 * np.sum(w ** 2) / self.sigma_sq - 0.5 * len(w) * np.log(2 * math.pi * self.sigma_sq))
-        tau_prior = -np.log(tau_sq)
+        """
+        Log prior using tfp.distributions.Normal for weights and Jeffreys prior for tau.
+        p(w) = Normal(0, sqrt(sigma_sq))
+        p(tau) ~ 1/tau  (Jeffreys)
+        """
+        w_dist    = tfd.Normal(loc=np.float32(0.0), scale=np.float32(self.sigma_sq ** 0.5))
+        w_prior   = float(tf.reduce_sum(w_dist.log_prob(w.astype(np.float32))).numpy())
+        tau_prior = -float(np.log(tau_sq))
         return w_prior + tau_prior
 
     ########################################################################################
@@ -221,12 +239,12 @@ class MCMCSampler:
             print(f"Langevin count  : {n_langevin}")
         ########################################################################################
         return {
-            'pos_w':       pos_w,       'pos_tau':     pos_tau,
-            'fx_train':    fx_train_samples,            'fx_test':     fx_test_samples,
-            'r2_train':    r2_train_arr,                'r2_test':     r2_test_arr,
-            'rmse_train':  rmse_train_arr,              'rmse_test':   rmse_test_arr,
-            'mape_train':  mape_train_arr,              'mape_test':   mape_test_arr,
-            'burnin_idx':  burnin_idx,                  'accept_rate': accept_rate,
+            'pos_w':       pos_w,            'pos_tau':     pos_tau,
+            'fx_train':    fx_train_samples, 'fx_test':     fx_test_samples,
+            'r2_train':    r2_train_arr,     'r2_test':     r2_test_arr,
+            'rmse_train':  rmse_train_arr,   'rmse_test':   rmse_test_arr,
+            'mape_train':  mape_train_arr,   'mape_test':   mape_test_arr,
+            'burnin_idx':  burnin_idx,       'accept_rate': accept_rate,
             'n_langevin':  n_langevin,
         }
 
@@ -234,7 +252,7 @@ class MCMCSampler:
 def plot_bnn_results_tf(results={}, y_train=[], y_test=[], path_db='', sampling_method=''):
     """
     Plot BNN MCMC convergence metrics and uncertainty bands.
-    Saves figures to path_db. Identical to PyTorch version.
+    Saves figures to path_db.
 
     :param results:          Output dict from MCMCSampler.sample()
     :param y_train:          Training targets numpy array
@@ -273,10 +291,10 @@ def plot_bnn_results_tf(results={}, y_train=[], y_test=[], path_db='', sampling_
         (axes[0], x_train, y_train.ravel(), mu_train, p10_train, p90_train, 'Training'),
         (axes[1], x_test,  y_test.ravel(),  mu_test,  p10_test,  p90_test,  'Testing'),
     ]:
-        ax.plot(x, y_true, color='black', label='Actual',    linewidth=1.5)
-        ax.plot(x, mu,     color='blue',  label='BNN Mean',  linewidth=1.2)
-        ax.plot(x, p10,    color='gray',  label='P10',       linewidth=0.8, linestyle='--')
-        ax.plot(x, p90,    color='gray',  label='P90',       linewidth=0.8, linestyle='--')
+        ax.plot(x, y_true, color='black', label='Actual',   linewidth=1.5)
+        ax.plot(x, mu,     color='blue',  label='BNN Mean', linewidth=1.2)
+        ax.plot(x, p10,    color='gray',  label='P10',      linewidth=0.8, linestyle='--')
+        ax.plot(x, p90,    color='gray',  label='P90',      linewidth=0.8, linestyle='--')
         ax.fill_between(x, p10, p90, alpha=0.3, color='yellow', label='P10-P90 band')
         ax.set_title(f'{split} Data', size=11); ax.set_xlabel('Sample index (normalized)'); ax.set_ylabel('Predicted value'); ax.legend(fontsize=8)
     fig.tight_layout()
