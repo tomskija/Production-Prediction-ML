@@ -687,12 +687,10 @@ def hyperparameter_tuning(p={}, path_db='', ArrayVals=[], sampling_method='Rando
     fit_r2_ary   = results_array[:, 0];  fit_ve_ary   = results_array[:, 1]
     fit_rmse_ary = results_array[:, 2];  fit_mape_ary = results_array[:, 3]
     ########################################################################################
-    df_hpt_rf = pd.DataFrame({
-        'optimal random state': [rnd_seed_iter[np.argmax(fit_r2_ary)],   rnd_seed_iter[np.argmax(fit_ve_ary)],
-                                 rnd_seed_iter[np.argmin(fit_rmse_ary)],  rnd_seed_iter[np.argmin(fit_mape_ary)]],
-        'metric value':         [np.round(np.max(fit_r2_ary), 3),        np.round(np.max(fit_ve_ary), 3),
-                                 np.round(np.min(fit_rmse_ary), 3),       np.round(np.min(fit_mape_ary), 3)]},
-        index=['R$^2$ Value', 'Exp_Var Value', 'RMSE Value', 'MAPE Value'])
+    dfHptRF = pd.DataFrame({
+            'optimal random state': [rnd_seed_iter[np.argmax(fit_r2_ary)], rnd_seed_iter[np.argmax(fit_ve_ary)], rnd_seed_iter[np.argmin(fit_rmse_ary)],  rnd_seed_iter[np.argmin(fit_mape_ary)]],
+            'metric value':         [np.round(np.max(fit_r2_ary), 3), np.round(np.max(fit_ve_ary), 3), np.round(np.min(fit_rmse_ary), 3), np.round(np.min(fit_mape_ary), 3)]
+        }, index=['R$^2$ Value', 'Exp_Var Value', 'RMSE Value', 'MAPE Value'])
     ########################################################################################
     # Depth and tree sweep
     max_depths     = np.arange(1, 46)
@@ -741,18 +739,10 @@ def hyperparameter_tuning(p={}, path_db='', ArrayVals=[], sampling_method='Rando
     ########################################################################################
     # MLflow: log final tuned hyperparameters and best metric results to active parent run
     if mlflow.active_run():
-        mlflow.log_params({
-            'tuned_max_depth':  max_depth_save_state,
-            'tuned_num_trees':  num_trees_save_state,
-        })
-        mlflow.log_metrics({
-            'tuned_max_exp_var_depth': float(exp_var_max_max_depths),
-            'tuned_min_rmse_depth':    float(rmse_min_max_depths),
-            'tuned_max_exp_var_trees': float(exp_var_max_num_trees),
-            'tuned_min_rmse_trees':    float(rmse_min_num_trees),
-        })
+        mlflow.log_params({'tuned_max_depth': max_depth_save_state,'tuned_num_trees': num_trees_save_state})
+        mlflow.log_metrics({'tuned_max_exp_var_depth': float(exp_var_max_max_depths), 'tuned_min_rmse_depth': float(rmse_min_max_depths), 'tuned_max_exp_var_trees': float(exp_var_max_num_trees), 'tuned_min_rmse_trees': float(rmse_min_num_trees)})
     ########################################################################################
-    return df_hpt_rf, max_depth_save_state, num_trees_save_state
+    return dfHptRF, max_depth_save_state, num_trees_save_state
 
 ###############################################################################
 def plot_split_histogram(ax=None, ax_twin=None, train_data=[], test_data=[], title='', xlim=(), colors=[]):

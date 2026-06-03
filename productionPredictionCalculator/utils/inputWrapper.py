@@ -1,5 +1,5 @@
 ############################################################################################
-def standardizedInputWrapper(inJson={}):
+def standardInputWrapper(inJson={}):
     """
     Generically unpacks any JSON with the standard params/tables structure.
     :param inJson: Raw JSON input dict
