@@ -40,9 +40,7 @@ def calculate(inJson={}, localTesing=False):
             df, ArrayVals, best_method  = dynamicallyPickClustering(df=df, path_db=path_db, n_range=inputData['n_range'], kmeans_random_state_range=inputData['kmeans_random_state_range'], gmm_random_state_range=inputData['gmm_random_state_range'])
             mlflow.set_tag('sampling_method', best_method)
             p = find_best_rf_seeds(predictive_features=selected_features, target_feature=inputData['target_feature'], ArrayVals=ArrayVals, sampling_method=best_method, parameters_rf=parameters_rf, path_db=path_db, split_seed_range=inputData['split_seed_range'], rf_seed_range=inputData['rf_seed_range'])
-            _, max_depth_save_state, num_trees_save_state = hyperparameter_tuning(p=p, path_db=path_db, ArrayVals=ArrayVals, sampling_method=best_method, parameters_rf=parameters_rf, run_sampling_split=inputData['run_sampling_split'], run_test=inputData['run_test'])
-            p['max_depth'] = max_depth_save_state
-            p['num_trees'] = num_trees_save_state
+            _, p['max_depth'], p['num_trees'] = hyperparameter_tuning(p=p, path_db=path_db, ArrayVals=ArrayVals, sampling_method=best_method, parameters_rf=parameters_rf, run_sampling_split=inputData['run_sampling_split'], run_test=inputData['run_test'])
             X_train20, X_test20, y_train20, y_test20 = plot_rf_results(df=df, path_db=path_db, ArrayVals=ArrayVals, sampling_method=best_method, parameters_rf=parameters_rf, p=p, min_plot=inputData['min_plot'], max_plot=inputData['max_plot'])
             callSharpAnalysis(inputData={**inputData, 'predictive_features': selected_features}, p=p, X_train20=X_train20, X_test20=X_test20, y_train20=y_train20, path_db=path_db, best_method=best_method)
             if os.path.exists(path_db): mlflow.log_artifacts(path_db, artifact_path='figures')
