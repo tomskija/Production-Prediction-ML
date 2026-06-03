@@ -3,7 +3,8 @@ import json
 import os
 import mlflow
 from os.path import dirname, join
-from utils.inputWrapper import standardizedInputWrapper
+from utils.inputWrapper import standardInputWrapper
+from utils.outputWrapper import standardOutputWrapper
 from utils.mlFlowConfig import setupMLFlow
 from utils.utils import (
     checkData,
@@ -24,9 +25,10 @@ def calculate(inJson={}, localTesing=False):
     setupMLFlow()
     ###########################################################################
     try:
-        inputData   = standardizedInputWrapper(inJson=inJson)
-        inputData   = checkData(inputData=inputData)
-        df, path_db = loadCleanDataAndSetOutputDirectory(localTesing=localTesing)
+        inputData      = standardInputWrapper(inJson=inJson)
+        output_wrapper = standardOutputWrapper()
+        inputData      = checkData(inputData=inputData)
+        df, path_db    = loadCleanDataAndSetOutputDirectory(localTesing=localTesing)
         #######################################################################
         with mlflow.start_run(run_name=f"pipeline_{inputData['name']}"):
             mlflow.set_tag('sampling_method', 'TBD')
@@ -49,14 +51,18 @@ def calculate(inJson={}, localTesing=False):
         print("\nError Message: " + str(e) + "\n")
         return str(e)
     ###########################################################################
-    return "Success"
+    output_wrapper.add_param(name='best_sampling_method', value=best_method)
+    output_wrapper.add_table(name='selected_features', array=selected_features)
+    ###########################################################################
+    return output_wrapper
 
 ###############################################################################
 def main():
+    # testNum = 1
     with open(join(dirname(__file__), "tests/testOrg.json")) as json_file:
         inJson = json.load(json_file)
-    response = calculate(inJson=inJson, localTesing=True)
-    print(response)
+    output_wrapper = calculate(inJson=inJson, localTesing=True)
+    # output_wrapper.dump_json(join(thisDirName, "../tests/out_json/output_example_test" + str(testNum)
 
 ###############################################################################
 if __name__ == "__main__": main()
