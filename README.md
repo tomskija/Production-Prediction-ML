@@ -22,7 +22,7 @@ Starting from raw petrophysical well data, the pipeline moves through feature en
 
 **SHAP Explainability** — TreeExplainer runs on the final best RF model, producing beeswarm summary plots, bar charts, and waterfall plots for individual prediction breakdowns. Feature rankings printed to console at the end of every run.
 
-**Bayesian Neural Network** — Optional PyTorch BNN with Langevin dynamics MCMC sampling runs in parallel on the same train/test split as the RF, enabling direct model comparison. Produces convergence plots and P10/mean/P90 uncertainty bands. Toggle via `run_bnn` in `testOrg.json`.
+**Bayesian Neural Network** — Optional BNN with Langevin dynamics MCMC sampling runs in parallel on the same train/test split as the RF, enabling direct model comparison. Produces convergence plots and P10/mean/P90 uncertainty bands. Two implementations available — PyTorch (`bnn_pt.py`) using `torch.distributions.Normal` and TensorFlow (`bnn_tf.py`) using `tensorflow_probability.distributions.Normal`. Toggle via `run_bnn` and `bnn_library` in `testOrg.json`.
 
 **SQL Data Layer** — Well data is read from and results are written back to a database. SQLite is used locally for development; PostgreSQL runs as a dedicated Docker service in production. Run metadata, model performance, and selected features are persisted per run and available for the UI layer to query.
 
@@ -64,7 +64,8 @@ Production-Prediction-ML/
 │       ├── outputWrapper.py            # Generic output wrapper class
 │       ├── mlFlowConfig.py             # MLflow setup + autolog helpers
 │       ├── dbConfig.py                 # SQLite / PostgreSQL data layer
-│       ├── bnn.py                      # PyTorch BNN + MCMC sampler
+│       ├── bnn_pt.py                   # PyTorch BNN + MCMC sampler (torch.distributions)
+│       ├── bnn_tf.py                   # TensorFlow BNN + MCMC sampler (tensorflow_probability)
 │       └── shapAnalysis.py             # SHAP TreeExplainer + plots
 ├── tests/
 │   └── test_calculator.py
@@ -110,6 +111,7 @@ All parameters are set in `productionPredictionCalculator/tests/testOrg.json`. K
 | `variance_threshold` | Cumulative explained variance cutoff for feature/component selection |
 | `run_test` | `1` = short sweep (fast), `0` = full sweep |
 | `run_bnn` | `1` = run BNN alongside RF, `0` = RF only |
+| `bnn_library` | `"pytorch"` or `"tensorflow"` — selects BNN implementation |
 | `bnn_n_samples` | Number of MCMC samples for BNN |
 | `bnn_burn_in` | Burn-in fraction for BNN posterior (default 0.85) |
 | `bnn_hidden_neurons` | Number of neurons in the BNN hidden layer |
@@ -127,9 +129,10 @@ All figures save to `Figures and Results/` at runtime and are logged as MLflow a
 - `RF_Final_Fit.png` / `RF_Hyperparameter_Tuning.png`
 - `RF_Histograms.png` / `RF_Production_ScatterPlot.png`
 - `SHAP_Summary_*.png` / `SHAP_Bar_*.png` / `SHAP_Waterfall_*.png`
-- `BNN_Convergence_*.png` / `BNN_Uncertainty_*.png` *(when `run_bnn=1`)*
+- `BNN_Convergence_*.png` / `BNN_Uncertainty_*.png` *(when `run_bnn=1`, PyTorch)*
+- `BNN_TF_Convergence_*.png` / `BNN_TF_Uncertainty_*.png` *(when `run_bnn=1`, TensorFlow)*
 
-Run results (metrics, selected features, sampling method, model params) are also persisted to the SQL database for downstream UI consumption.
+Run results are also persisted to the SQL database for downstream UI consumption.
 
 ---
 
@@ -161,4 +164,4 @@ Synthetic unconventional reservoir dataset from [Michael J. Pyrcz (GeostatsGuy)]
 
 ## Dependencies
 
-Python 3.11 · scikit-learn · scipy · numpy · pandas · matplotlib · seaborn · shap · mlflow · torch · psycopg2 · joblib · openpyxl
+Python 3.11 · scikit-learn · scipy · numpy · pandas · matplotlib · seaborn · shap · mlflow · torch · tensorflow · tensorflow-probability · psycopg2 · joblib · openpyxl
