@@ -10,7 +10,8 @@ from utils.inputWrapper import standardInputWrapper
 from utils.outputWrapper import standardOutputWrapper
 from utils.mlFlowConfig import setupMLFlow
 from utils.dbConfig import DBConfig
-from utils.bnn import BNN, MCMCSampler, plot_bnn_results
+from utils.bnn_pt import BNN as BNN_PT, MCMCSampler as MCMCSampler_PT, plot_bnn_results as plot_bnn_results_pt
+from utils.bnn_tf import BNN as BNN_TF, MCMCSampler as MCMCSampler_TF, plot_bnn_results as plot_bnn_results_tf
 from utils.utils import (
     checkData,
     feature_engineering,
@@ -52,10 +53,13 @@ def calculate(inJson={}, localTesing=False):
             ###################################################################
             # BNN — parallel on same train/test split as RF, gated by run_bnn flag
             if inputData['run_bnn']:
-                bnn         = BNN(topology=[len(selected_features)] + inputData['bnn_hidden_neurons'] + [1])
-                sampler     = MCMCSampler(bnn=bnn, use_langevin=True, langevin_prob=0.5)
+                BNN_cls     = BNN_TF     if inputData['bnn_library'] == 'tensorflow' else BNN_PT
+                Sampler_cls = MCMCSampler_TF if inputData['bnn_library'] == 'tensorflow' else MCMCSampler_PT
+                plot_fn     = plot_bnn_results_tf if inputData['bnn_library'] == 'tensorflow' else plot_bnn_results_pt
+                bnn         = BNN_cls(topology=[len(selected_features)] + inputData['bnn_hidden_neurons'] + [1])
+                sampler     = Sampler_cls(bnn=bnn, use_langevin=True, langevin_prob=0.5)
                 bnn_results = sampler.sample(x_train=X_train20, y_train=y_train20.reshape(-1, 1), x_test=X_test20, y_test=y_test20.reshape(-1, 1), n_samples=inputData['bnn_n_samples'], burn_in=inputData['bnn_burn_in'], verbose=True)
-                plot_bnn_results(results=bnn_results, y_train=y_train20, y_test=y_test20, path_db=path_db, sampling_method=best_method)
+                plot_fn(results=bnn_results, y_train=y_train20, y_test=y_test20, path_db=path_db, sampling_method=best_method)
                 mlflow.log_metrics({'bnn_r2_test': float(bnn_results['r2_test'][bnn_results['burnin_idx']:].mean() * 100), 'bnn_rmse_test': float(bnn_results['rmse_test'][bnn_results['burnin_idx']:].mean() * 100), 'bnn_mape_test': float(bnn_results['mape_test'][bnn_results['burnin_idx']:].mean()), 'bnn_accept': float(bnn_results['accept_rate'])})
             ###################################################################
             if os.path.exists(path_db): mlflow.log_artifacts(path_db, artifact_path='figures')

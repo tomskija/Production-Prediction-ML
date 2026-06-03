@@ -142,6 +142,11 @@
                 "valueType": 1
             },
             {
+                "name": "bnn_library",
+                "value": "pytorch",
+                "valueType": 0
+            },
+            {
                 "name": "bnn_n_samples",
                 "value": 400,
                 "valueType": 2
