@@ -44,23 +44,6 @@ def checkData(inputData=[]):
     return inputData
 
 ###############################################################################
-def setup_output_directory():
-    """
-    :param name:             Name suffix for the output directory
-    :param problemfolder_db: Base folder name
-    :return:                 path_db string
-    """
-    path_db = "Figures and Results"
-    print(path_db)
-    if not os.path.exists(path_db):
-        os.makedirs(path_db)
-    else:
-        shutil.rmtree(path_db)
-        os.makedirs(path_db)
-    return path_db
-
-
-###############################################################################
 def loadCleanDataAndSetOutputDirectory(localTesing=False):
     ###########################################################################
     path_db = 'Figures and Results'
