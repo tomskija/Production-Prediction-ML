@@ -1,6 +1,4 @@
 ###############################################################################
-# Use react/astro vs. streamlit
-# also modal
 import json
 import os
 import mlflow
