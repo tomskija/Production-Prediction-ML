@@ -2,16 +2,6 @@
     "data": {
         "params": [
             {
-                "name": "name",
-                "value": "Production_Results",
-                "valueType": 0
-            },
-            {
-                "name": "problemfolder_db",
-                "value": "Figures and Results",
-                "valueType": 0
-            },
-            {
                 "name": "min_pred_norm",
                 "value": -1.3875,
                 "valueType": 2
@@ -30,11 +20,6 @@
                 "name": "max_target_norm",
                 "value": 0.995,
                 "valueType": 2
-            },
-            {
-                "name": "plot",
-                "value": 1,
-                "valueType": 1
             },
             {
                 "name": "fi_random_state",
@@ -112,16 +97,6 @@
                 "valueType": 2
             },
             {
-                "name": "run_sampling_split",
-                "value": 1,
-                "valueType": 1
-            },
-            {
-                "name": "run_test",
-                "value": 0,
-                "valueType": 1
-            },
-            {
                 "name": "min_plot",
                 "value": -1.5,
                 "valueType": 2
@@ -129,6 +104,16 @@
             {
                 "name": "max_plot",
                 "value": 1.5,
+                "valueType": 2
+            },
+            {
+                "name": "mi_threshold",
+                "value": 0.1,
+                "valueType": 2
+            },
+            {
+                "name": "variance_threshold",
+                "value": 0.95,
                 "valueType": 2
             }
         ],

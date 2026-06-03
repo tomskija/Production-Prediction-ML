@@ -1,7 +1,10 @@
 ############################################################################################
 import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 import mlflow
 import mlflow.sklearn
+import mlflow.tensorflow
 
 ############################################################################################
 def setupMLFlow(experiment_name='production-prediction-rf'):
@@ -15,6 +18,8 @@ def setupMLFlow(experiment_name='production-prediction-rf'):
     tracking_uri = os.environ.get('MLFLOW_TRACKING_URI', 'http://localhost:5000')
     mlflow.set_tracking_uri(tracking_uri)
     mlflow.set_experiment(experiment_name)
+    os.environ['MLFLOW_EXPERIMENT_NAME'] = experiment_name  # add this
+    os.environ['MLFLOW_TRACKING_URI']    = tracking_uri     # add this
     print(f"MLflow tracking URI : {tracking_uri}")
     print(f"MLflow experiment   : {experiment_name}")
 
@@ -26,7 +31,6 @@ def enable_tf_autolog():
     Captures: model summary, per-epoch metrics, hyperparameters, saved model artifact.
     Lazy import — TF only loads when this function is explicitly called.
     """
-    import mlflow.tensorflow
     mlflow.tensorflow.autolog(
         log_models=True,
         log_input_examples=False,

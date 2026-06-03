@@ -5,6 +5,7 @@ RUN apt-get update && apt-get install -y \
     git \
     curl \
     build-essential \
+    procps \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
