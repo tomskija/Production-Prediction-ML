@@ -9,12 +9,13 @@ from utils.utils import (
     checkData,
     feature_engineering,
     loadCleanDataAndSetOutputDirectory,
-    analyze_and_select_features,
+    analyzeAndSelectFeatures,
     dynamicallyPickClustering,
     find_best_rf_seeds,
     hyperparameter_tuning,
     plot_rf_results,
     callSharpAnalysis,
+    plot_well_data,
 )
 
 ###############################################################################
@@ -29,17 +30,10 @@ def calculate(inJson={}, localTesing=False):
         #######################################################################
         with mlflow.start_run(run_name=f"pipeline_{inputData['name']}"):
             mlflow.set_tag('sampling_method', 'TBD')
-            mlflow.log_params({
-                'name':                 inputData['name'],
-                'target_feature':       inputData['target_feature'],
-                'run_test':             inputData['run_test'],
-                'run_sampling_split':   inputData['run_sampling_split'],
-                'auto_select_features': inputData['auto_select_features'],
-                'mi_threshold':         inputData['mi_threshold'],
-                'variance_threshold':   inputData['variance_threshold'],
-            })
+            mlflow.log_params({'name': inputData['name'], 'target_feature': inputData['target_feature'], 'run_test': inputData['run_test'], 'run_sampling_split': inputData['run_sampling_split'], 'auto_select_features': inputData['auto_select_features'], 'mi_threshold': inputData['mi_threshold'], 'variance_threshold': inputData['variance_threshold']})
             df = feature_engineering(df_data1=df, min_pred_norm=inputData['min_pred_norm'], max_pred_norm=inputData['max_pred_norm'], min_target_norm=inputData['min_target_norm'], max_target_norm=inputData['max_target_norm'], path_db=path_db, plot=inputData['plot'])
-            df, selected_features, selection_mode     = analyze_and_select_features(df=df, path_db=path_db, target_feature=inputData['target_feature'], predictive_features=inputData['predictive_features'], auto_select_features=inputData['auto_select_features'], mi_threshold=inputData['mi_threshold'], variance_threshold=inputData['variance_threshold'], random_state=inputData['fi_random_state'], n_estimators=inputData['fi_n_estimators'], max_depth=inputData['fi_max_depth'], max_features=inputData['fi_max_features'], plot=inputData['plot'])
+            df, selected_features, selection_mode = analyzeAndSelectFeatures(df=df, path_db=path_db, target_feature=inputData['target_feature'], predictive_features=inputData['predictive_features'], auto_select_features=inputData['auto_select_features'], mi_threshold=inputData['mi_threshold'], variance_threshold=inputData['variance_threshold'], random_state=inputData['fi_random_state'], n_estimators=inputData['fi_n_estimators'], max_depth=inputData['fi_max_depth'], max_features=inputData['fi_max_features'], plot=inputData['plot'])
+            plot_well_data(df=df, path_db=path_db)
             mlflow.log_param('feature_selection_mode', selection_mode)
             mlflow.log_param('selected_features', str(selected_features))
             parameters_rf = selected_features + [inputData['target_feature']]

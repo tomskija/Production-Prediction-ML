@@ -18,6 +18,7 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
 from joblib import Parallel, delayed
 from tqdm import tqdm
+from matplotlib.patches import Patch
 from utils.shapAnalysis import run_shap_analysis
 sns.set_theme(font_scale=0.8)
 warnings.filterwarnings('ignore')
@@ -44,23 +45,6 @@ def checkData(inputData=[]):
     return inputData
 
 ###############################################################################
-def setup_output_directory():
-    """
-    :param name:             Name suffix for the output directory
-    :param problemfolder_db: Base folder name
-    :return:                 path_db string
-    """
-    path_db = "Figures and Results"
-    print(path_db)
-    if not os.path.exists(path_db):
-        os.makedirs(path_db)
-    else:
-        shutil.rmtree(path_db)
-        os.makedirs(path_db)
-    return path_db
-
-
-###############################################################################
 def loadCleanDataAndSetOutputDirectory(localTesing=False):
     ###########################################################################
     path_db = 'Figures and Results'
@@ -80,7 +64,7 @@ def loadCleanDataAndSetOutputDirectory(localTesing=False):
     return df, path_db
 
 ###############################################################################
-def analyze_and_select_features(
+def analyzeAndSelectFeatures(
     df=pd.DataFrame(),
     path_db='',
     target_feature='Production',
@@ -118,34 +102,28 @@ def analyze_and_select_features(
     y            = df[[target_feature]]
     lab_enc      = preprocessing.LabelEncoder()
     y_encoded    = lab_enc.fit_transform(y)
-
     ########################################################################################
-    # --- Pearson correlation ---
+    # Pearson correlation
     pearson = np.abs(df.corr()[target_feature].drop(target_feature).values)
-
-    # --- Spearman rank correlation ---
+    # Spearman rank correlation
     rank_corr_mat, _ = stats.spearmanr(df)
     rank_corr        = np.abs(rank_corr_mat[:, -1][:-1])
-
-    # --- Mutual information ---
+    # Mutual information
     mi        = mutual_info_regression(x, np.ravel(y_encoded), random_state=random_state)
     mi_norm   = mi / np.max(mi) if np.max(mi) > 0 else mi
-
-    # --- RF feature importance ---
+    # RF feature importance
     rf          = RandomForestRegressor(oob_score=True, max_depth=max_depth, random_state=random_state, n_estimators=n_estimators, max_features=max_features)
     rf.fit(x, np.ravel(y_encoded))
     importances = rf.feature_importances_
     std         = np.std([tree.feature_importances_ for tree in rf.estimators_], axis=0)
-
     ########################################################################################
-    # --- Correlation heatmaps (always saved) ---
+    # Correlation heatmaps (always saved)
     plt.figure(figsize=(16, 10))
     sns.heatmap(df.corr(), annot=True, linewidth=0, vmin=-1, square=True)
     plt.title("Correlation Heatmap: Features and Response", size=18)
     plt.tight_layout()
     plt.savefig(path_db + '/Correlation_Heatmap.png', bbox_inches='tight')
-    plt.close()
-
+    # plt.close()
     rank_corr_full, _ = stats.spearmanr(df)
     plt.figure(figsize=(16, 10))
     tick_labels = df.columns.tolist()
@@ -153,9 +131,8 @@ def analyze_and_select_features(
     plt.title("Rank Correlation Heatmap: Features and Response", size=18)
     plt.tight_layout()
     plt.savefig(path_db + '/Rank_Correlation_Heatmap.png', bbox_inches='tight')
-    plt.close()
-
-    # --- MI and feature importance bar charts (always saved) ---
+    # plt.close()
+    # MI and feature importance bar charts (always saved)
     indices_mi  = np.argsort(mi_norm)[::-1]
     indices_imp = np.argsort(importances)[::-1]
     plt.figure(figsize=(12, 6))
@@ -171,40 +148,25 @@ def analyze_and_select_features(
     plt.xlim([-1, x.shape[1]])
     plt.subplots_adjust(left=0.0, bottom=0.0, right=2.0, top=1., wspace=0.2, hspace=0.2)
     plt.savefig(path_db + '/Mutual_Info_and_Feature_Import.png', bbox_inches='tight')
-    plt.close()
-
-    plot_well_data(df=df, path_db=path_db)
-
+    # plt.close()
     ########################################################################################
-    # --- User mode: return user-supplied features as-is with summary figure ---
+    # User mode: return user-supplied features as-is with summary figure
     if not auto_select_features:
         selection_mode    = 'user'
         selected_features = predictive_features
         df_selected       = df[selected_features + [target_feature]].copy()
         print(f"Feature selection mode : {selection_mode}")
         print(f"Selected features      : {selected_features}")
-        _save_selection_summary(
-            feature_cols=feature_cols, pearson=pearson, rank_corr=rank_corr,
-            mi_norm=mi_norm, importances=importances,
-            selected_features=selected_features, path_db=path_db,
-            selection_mode=selection_mode,
-        )
+        saveSelectionSummary(feature_cols=feature_cols, pearson=pearson, rank_corr=rank_corr, mi_norm=mi_norm, importances=importances, selected_features=selected_features, path_db=path_db, selection_mode=selection_mode)
         return df_selected, selected_features, selection_mode
-
     ########################################################################################
-    # --- Auto mode: MI gate decides rank ensemble vs PCA ---
+    # Auto mode: MI gate decides rank ensemble vs PCA
     avg_mi = float(np.mean(mi_norm))
     print(f"Average normalised MI  : {round(avg_mi, 4)} | threshold : {mi_threshold}")
-
     if avg_mi >= mi_threshold:
-        # ---- Rank ensemble path ----
+        # Rank ensemble path
         selection_mode = 'rank_ensemble'
-        ranks          = (
-            _rank_array(pearson)     +
-            _rank_array(rank_corr)   +
-            _rank_array(mi_norm)     +
-            _rank_array(importances)
-        )
+        ranks = (rankArray(arr=pearson) + rankArray(arr=rank_corr) + rankArray(arr=mi_norm) + rankArray(arr=importances))
         # Cumulative explained variance on rank scores to pick n_features
         sorted_ranks      = np.sort(ranks)[::-1]
         cumulative        = np.cumsum(sorted_ranks) / np.sum(sorted_ranks)
@@ -212,9 +174,8 @@ def analyze_and_select_features(
         n_features_auto   = max(1, min(n_features_auto, len(feature_cols)))
         top_indices       = np.argsort(ranks)[::-1][:n_features_auto]
         selected_features = [feature_cols[i] for i in top_indices]
-
     else:
-        # ---- PCA path ----
+        # PCA path
         selection_mode = 'pca'
         from sklearn.decomposition import PCA
         pca            = PCA(random_state=random_state)
@@ -225,7 +186,6 @@ def analyze_and_select_features(
         pca_final      = PCA(n_components=n_components, random_state=random_state)
         pc_values      = pca_final.fit_transform(x)
         loadings       = pca_final.components_  # shape: (n_components, n_features)
-
         # Build abbreviated PC column names from top-loading original features
         pc_col_names = []
         for i, loading_vec in enumerate(loadings):
@@ -234,11 +194,9 @@ def analyze_and_select_features(
             abbrevs     = [''.join([w[:3] for w in feature_cols[j].split('_')]) for j in top_idx if abs_loads[j] > 0.1]
             abbrevs     = abbrevs if abbrevs else [feature_cols[top_idx[0]][:4]]
             pc_col_names.append(f"PC{i+1}_{'_'.join(abbrevs)}")
-        
         pc_df             = pd.DataFrame(pc_values, columns=pc_col_names, index=df.index)
         df_selected       = pd.concat([pc_df, df[[target_feature]].reset_index(drop=True)], axis=1)
         selected_features = pc_col_names
-
         # PCA explained variance plot
         if plot:
             plt.figure(figsize=(8, 4))
@@ -249,50 +207,38 @@ def analyze_and_select_features(
             plt.title(f'PCA Explained Variance — {n_components} components selected')
             plt.legend(); plt.tight_layout()
             plt.savefig(path_db + '/PCA_Explained_Variance.png', bbox_inches='tight')
-            plt.close()
-
+            # plt.close()
         print(f"Feature selection mode : {selection_mode}")
         print(f"Selected features      : {selected_features}")
-        _save_selection_summary(
-            feature_cols=feature_cols, pearson=pearson, rank_corr=rank_corr,
-            mi_norm=mi_norm, importances=importances,
-            selected_features=selected_features, path_db=path_db,
-            selection_mode=selection_mode,
-        )
+        saveSelectionSummary(feature_cols=feature_cols, pearson=pearson, rank_corr=rank_corr, mi_norm=mi_norm, importances=importances, selected_features=selected_features, path_db=path_db, selection_mode=selection_mode)
         return df_selected, selected_features, selection_mode
-
     # Rank ensemble: slice original features
     df_selected = df[selected_features + [target_feature]].copy()
     print(f"Feature selection mode : {selection_mode}")
     print(f"Selected features      : {selected_features}")
-    _save_selection_summary(
-        feature_cols=feature_cols, pearson=pearson, rank_corr=rank_corr,
-        mi_norm=mi_norm, importances=importances,
-        selected_features=selected_features, path_db=path_db,
-        selection_mode=selection_mode,
-    )
+    saveSelectionSummary(feature_cols=feature_cols, pearson=pearson, rank_corr=rank_corr, mi_norm=mi_norm, importances=importances, selected_features=selected_features, path_db=path_db, selection_mode=selection_mode)
     return df_selected, selected_features, selection_mode
 
 ###############################################################################
-def _rank_array(arr):
-    """Convert array to ordinal ranks (highest value = highest rank)."""
+def rankArray(arr=[]):
+    """
+    Convert array to ordinal ranks (highest value = highest rank).
+    """
     order  = np.argsort(arr)[::-1]
     ranks  = np.empty_like(order)
     ranks[order] = np.arange(1, len(arr) + 1)[::-1]
     return ranks.astype(float)
 
 ###############################################################################
-def _save_selection_summary(feature_cols=[], pearson=[], rank_corr=[], mi_norm=[], importances=[], selected_features=[], path_db='', selection_mode=''):
+def saveSelectionSummary(feature_cols=[], pearson=[], rank_corr=[], mi_norm=[], importances=[], selected_features=[], path_db='', selection_mode=''):
     """
     Save a 4-panel summary figure showing all feature scores with selected features highlighted.
     """
     n        = len(feature_cols)
     selected = set(selected_features)
-    colors   = ['#2ecc71' if f in selected else '#bdc3c7' for f in feature_cols]
-
+    # colors = ['#2ecc71' if f in selected else '#bdc3c7' for f in feature_cols]
     fig, axes = plt.subplots(2, 2, figsize=(14, 10))
     fig.suptitle(f'Feature Selection Summary — mode: {selection_mode}', fontsize=14)
-
     for ax, values, title, ylabel in [
         (axes[0, 0], np.abs(pearson),    'Pearson |r| vs Target',       '|Pearson r|'),
         (axes[0, 1], np.abs(rank_corr),  'Spearman |ρ| vs Target',      '|Spearman ρ|'),
@@ -306,16 +252,11 @@ def _save_selection_summary(feature_cols=[], pearson=[], rank_corr=[], mi_norm=[
         ax.set_title(title, size=11)
         ax.set_ylabel(ylabel)
         ax.set_xlim([-0.5, n - 0.5])
-
-    from matplotlib.patches import Patch
-    legend_elements = [
-        Patch(facecolor='#2ecc71', label='Selected'),
-        Patch(facecolor='#bdc3c7', label='Not selected'),
-    ]
+    legend_elements = [Patch(facecolor='#2ecc71', label='Selected'), Patch(facecolor='#bdc3c7', label='Not selected')]
     fig.legend(handles=legend_elements, loc='lower center', ncol=2, fontsize=10)
     fig.tight_layout(rect=[0, 0.04, 1, 1])
     fig.savefig(path_db + '/Feature_Selection_Summary.png', bbox_inches='tight')
-    plt.close()
+    # plt.close()
 
 ###############################################################################
 def feature_engineering(df_data1=pd.DataFrame(), min_pred_norm=-1.3875, max_pred_norm=1.3875, min_target_norm=0.005, max_target_norm=0.995, path_db='', plot=True):
@@ -372,81 +313,6 @@ def feature_engineering(df_data1=pd.DataFrame(), min_pred_norm=-1.3875, max_pred
     ########################################################################################
     return df_out
 
-# ###############################################################################
-# def correlation_analysis(df=pd.DataFrame(), path_db=''):
-#     """
-#     :param df:      Engineered dataset
-#     :param path_db: Path to save heatmap figures
-#     :return:        correlation, rank_correlation, rank_correlation_pval, rank_correlation_scatter
-#     """
-#     ########################################################################################
-#     correlation                      = df.corr().iloc[-1, :-1]
-#     rank_correlation_scatter, pval   = stats.spearmanr(df)
-#     rank_correlation                 = rank_correlation_scatter[:, -1][:-1]
-#     rank_correlation_pval            = pval[:, -1][:-1]
-#     ########################################################################################
-#     plt.figure(figsize=(16, 10))
-#     sns.heatmap(df.corr(), annot=True, linewidth=0, vmin=-1, square=True)
-#     plt.title("Correlation Heatmap: Features and Response", size=18)
-#     plt.tight_layout()
-#     plt.savefig(path_db + '/Correlation_Heatmap.png', bbox_inches='tight')
-#     ########################################################################################
-#     plt.figure(figsize=(16, 10))
-#     tick_labels = df.columns.tolist()
-#     sns.heatmap(rank_correlation_scatter, annot=True, linewidth=0, vmin=-1, square=True, xticklabels=tick_labels, yticklabels=tick_labels)
-#     plt.title("Rank Correlation Heatmap: Features and Response", size=18)
-#     plt.tight_layout()
-#     plt.savefig(path_db + '/Rank_Correlation_Heatmap.png', bbox_inches='tight')
-#     ########################################################################################
-#     # plt.close('all')
-#     ########################################################################################
-#     return correlation, rank_correlation, rank_correlation_pval, rank_correlation_scatter
-
-# ###############################################################################
-# def feature_information(df=pd.DataFrame(), path_db='', random_state=5195, n_estimators=100, max_depth=25, max_features=3):
-#     """
-#     :param df:           Engineered dataset with predictive and target features
-#     :param path_db:      Path to save the output figure
-#     :param random_state: Random state for the random forest
-#     :param n_estimators: Number of trees in the random forest
-#     :param max_depth:    Max depth of the random forest
-#     :param max_features: Max features to consider per split
-#     :return: None
-#     """
-#     ########################################################################################
-#     x         = df.iloc[:, :-1]
-#     y         = df.iloc[:, [-1]]
-#     lab_enc   = preprocessing.LabelEncoder()
-#     y_encoded = lab_enc.fit_transform(y)
-#     mi        = mutual_info_regression(x, np.ravel(y_encoded))
-#     mi       /= np.max(mi)
-#     indices1  = np.argsort(mi)[::-1]
-#     rf        = RandomForestRegressor(oob_score=True, max_depth=max_depth, random_state=random_state, n_estimators=n_estimators, max_features=max_features)
-#     rf.fit(x, np.ravel(y_encoded))
-#     importances = rf.feature_importances_
-#     std         = np.std([tree.feature_importances_ for tree in rf.estimators_], axis=0)
-#     indices2    = np.argsort(importances)[::-1]
-#     ########################################################################################
-#     plt.figure(figsize=(12, 6))
-#     plt.subplot(1, 2, 1)
-#     plt.title("Mutual Information", size=12)
-#     plt.bar(range(x.shape[1]), mi[indices1], color="g", yerr=std[indices1], align="center")
-#     plt.xticks(range(x.shape[1]), x.columns[indices1], rotation=90)
-#     plt.xlim([-1, x.shape[1]])
-#     plt.subplot(1, 2, 2)
-#     plt.title("Feature Importances", size=12)
-#     plt.bar(range(x.shape[1]), importances[indices2], color="g", yerr=std[indices2], align="center")
-#     plt.xticks(range(x.shape[1]), x.columns[indices2], rotation=90)
-#     plt.xlim([-1, x.shape[1]])
-#     plt.subplots_adjust(left=0.0, bottom=0.0, right=2.0, top=1., wspace=0.2, hspace=0.2)
-#     plt.savefig(path_db + '/Mutual_Info_and_Feature_Import.png', bbox_inches='tight')
-#     ########################################################################################
-#     plot_well_data(df=df, path_db=path_db)
-#     ########################################################################################
-#     a = 1; b = 1
-#     return a, b
-
-# #
 ###############################################################################
 def plot_well_data(df=pd.DataFrame(), path_db=''):
     """
