@@ -12,8 +12,15 @@ services:
       - mlruns:/workspace/mlruns
     environment:
       - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=production_prediction
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=admin
     depends_on:
       mlflow:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
     restart: "no"
     networks:
@@ -38,8 +45,30 @@ services:
     networks:
       - ml-network
 
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres-server
+    environment:
+      - POSTGRES_DB=production_prediction
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=admin
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d production_prediction"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - ml-network
+
 volumes:
   mlruns:
+  pgdata:
 
 networks:
   ml-network:

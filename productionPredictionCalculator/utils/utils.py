@@ -45,7 +45,7 @@ def checkData(inputData=[]):
     return inputData
 
 ###############################################################################
-def loadCleanDataAndSetOutputDirectory(localTesing=False):
+def loadCleanDataAndSetOutputDirectory(localTesing=False, db=None):
     ###########################################################################
     path_db = 'Figures and Results'
     if not os.path.exists(path_db): os.makedirs(path_db)
@@ -58,8 +58,8 @@ def loadCleanDataAndSetOutputDirectory(localTesing=False):
         df = df.reset_index(drop=True)
         print(df.shape)
     else:
-        print("Add logic to read from blob storage")
-        df = pd.DataFrame()
+        df = db.load_well_data()
+        print(f"Loaded {len(df)} rows from database")
     ###########################################################################
     return df, path_db
 

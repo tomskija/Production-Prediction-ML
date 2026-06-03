@@ -2,13 +2,13 @@
 
 **By: Jackson R. Tomski**
 
-An end-to-end production ML pipeline for predicting unconventional reservoir oil production. The project combines spatially-aware sampling strategies, automated feature selection, Random Forest regression, SHAP explainability, and MLflow experiment tracking — all running inside a Docker Compose multi-service environment.
+An end-to-end production ML pipeline for predicting unconventional reservoir oil production. The project combines spatially-aware sampling strategies, automated feature selection, Random Forest regression, Bayesian Neural Network (BNN) inference, SHAP explainability, SQL data persistence, and MLflow experiment tracking — all running inside a Docker Compose multi-service environment.
 
 ---
 
 ## What This Does
 
-Starting from raw petrophysical well data, the pipeline moves through feature engineering, feature selection, spatial clustering, hyperparameter tuning, and model explainability. The core question being answered: does how you split your training data geographically matter for model performance and generalization?
+Starting from raw petrophysical well data, the pipeline moves through feature engineering, feature selection, spatial clustering, hyperparameter tuning, model explainability, and optional BNN comparison. The core question being answered: does how you split your training data geographically matter for model performance and generalization?
 
 **Feature Engineering** — Sequential normalization pipeline (StandardScaler → RobustScaler → PowerTransformer → MinMaxScaler) applied to raw features to condition the data and reduce outlier effects.
 
@@ -20,9 +20,13 @@ Starting from raw petrophysical well data, the pipeline moves through feature en
 
 **Hyperparameter Tuning** — Parallelized sweep over 10,000+ random seed combinations, max depth (1–45), and number of trees (1–200) to find the optimal RF configuration per sampling strategy.
 
-**SHAP Explainability** — TreeExplainer runs on the final best model, producing beeswarm summary plots, bar charts, and waterfall plots for individual prediction breakdowns. Feature rankings printed to console at the end of every run.
+**SHAP Explainability** — TreeExplainer runs on the final best RF model, producing beeswarm summary plots, bar charts, and waterfall plots for individual prediction breakdowns. Feature rankings printed to console at the end of every run.
 
-**MLflow Experiment Tracking** — Every run logs to a persistent MLflow tracking server running as a separate Docker service. Parent runs capture pipeline-level params and artifacts; nested child runs log individual RF training metrics (R², RMSE, MAPE, explained variance) for every seed sweep iteration.
+**Bayesian Neural Network** — Optional PyTorch BNN with Langevin dynamics MCMC sampling runs in parallel on the same train/test split as the RF, enabling direct model comparison. Produces convergence plots and P10/mean/P90 uncertainty bands. Toggle via `run_bnn` in `testOrg.json`.
+
+**SQL Data Layer** — Well data is read from and results are written back to a database. SQLite is used locally for development; PostgreSQL runs as a dedicated Docker service in production. Run metadata, model performance, and selected features are persisted per run and available for the UI layer to query.
+
+**MLflow Experiment Tracking** — Every run logs to a persistent MLflow tracking server running as a separate Docker service. Parent runs capture pipeline-level params and artifacts; nested child runs log individual RF training metrics (R², RMSE, MAPE, explained variance) for every seed sweep iteration. BNN metrics logged separately when enabled.
 
 ---
 
@@ -57,8 +61,11 @@ Production-Prediction-ML/
 │   └── utils/
 │       ├── utils.py                    # Core pipeline functions
 │       ├── inputWrapper.py             # Generic JSON input parser
+│       ├── outputWrapper.py            # Generic output wrapper class
 │       ├── mlFlowConfig.py             # MLflow setup + autolog helpers
-│       └── shapAnalysis.py            # SHAP TreeExplainer + plots
+│       ├── dbConfig.py                 # SQLite / PostgreSQL data layer
+│       ├── bnn.py                      # PyTorch BNN + MCMC sampler
+│       └── shapAnalysis.py             # SHAP TreeExplainer + plots
 ├── tests/
 │   └── test_calculator.py
 ├── Dockerfile                          # Calculator service image
@@ -79,7 +86,7 @@ git clone https://github.com/tomskija/Production-Prediction-ML.git
 cd Production-Prediction-ML
 ```
 
-Open in VS Code → `Reopen in Container`. Both the calculator container and the MLflow tracking server spin up automatically via Docker Compose.
+Open in VS Code → `Reopen in Container`. The calculator container, MLflow tracking server, and PostgreSQL database all spin up automatically via Docker Compose.
 
 Once inside the container, run the pipeline:
 
@@ -102,24 +109,27 @@ All parameters are set in `productionPredictionCalculator/tests/testOrg.json`. K
 | `mi_threshold` | Average MI gate — below this triggers PCA path |
 | `variance_threshold` | Cumulative explained variance cutoff for feature/component selection |
 | `run_test` | `1` = short sweep (fast), `0` = full sweep |
+| `run_bnn` | `1` = run BNN alongside RF, `0` = RF only |
+| `bnn_n_samples` | Number of MCMC samples for BNN |
+| `bnn_burn_in` | Burn-in fraction for BNN posterior (default 0.85) |
+| `bnn_hidden_neurons` | Number of neurons in the BNN hidden layer |
 
 ---
 
 ## Output
 
-All figures save to `Figures and Results/` at runtime:
+All figures save to `Figures and Results/` at runtime and are logged as MLflow artifacts:
 
 - `Original_Histograms.png` / `Engineered_Histograms.png`
 - `Correlation_Heatmap.png` / `Rank_Correlation_Heatmap.png`
-- `Mutual_Info_and_Feature_Import.png`
-- `Feature_Selection_Summary.png`
-- `Well_Data_ScatterPlot.png`
-- `Sp_Clustering.png`
+- `Mutual_Info_and_Feature_Import.png` / `Feature_Selection_Summary.png`
+- `Well_Data_ScatterPlot.png` / `Sp_Clustering.png`
 - `RF_Final_Fit.png` / `RF_Hyperparameter_Tuning.png`
 - `RF_Histograms.png` / `RF_Production_ScatterPlot.png`
 - `SHAP_Summary_*.png` / `SHAP_Bar_*.png` / `SHAP_Waterfall_*.png`
+- `BNN_Convergence_*.png` / `BNN_Uncertainty_*.png` *(when `run_bnn=1`)*
 
-All figures are also logged as MLflow artifacts and viewable in the MLflow UI.
+Run results (metrics, selected features, sampling method, model params) are also persisted to the SQL database for downstream UI consumption.
 
 ---
 
@@ -151,4 +161,4 @@ Synthetic unconventional reservoir dataset from [Michael J. Pyrcz (GeostatsGuy)]
 
 ## Dependencies
 
-Python 3.11 · scikit-learn · scipy · numpy · pandas · matplotlib · seaborn · shap · mlflow · joblib · openpyxl
+Python 3.11 · scikit-learn · scipy · numpy · pandas · matplotlib · seaborn · shap · mlflow · torch · psycopg2 · joblib · openpyxl
