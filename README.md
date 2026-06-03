@@ -20,7 +20,7 @@ Starting from raw petrophysical well data, the pipeline moves through feature en
 
 **Hyperparameter Tuning** — Parallelized sweep over 10,000+ random seed combinations, max depth (1–45), and number of trees (1–200) to find the optimal RF configuration per sampling strategy.
 
-**SHAP Explainability** — TreeExplainer runs on the final best RF model, producing beeswarm summary plots, bar charts, and waterfall plots for individual prediction breakdowns. Feature rankings printed to console at the end of every run.
+**SHAP Explainability** — TreeExplainer runs on the final best RF model, producing beeswarm summary plots, bar charts, and waterfall plots for individual prediction breakdowns. For the BNN, GradientExplainer provides comparable feature attribution using integrated gradients — works with both PyTorch and TensorFlow implementations. Feature rankings printed to console after every run.
 
 **Bayesian Neural Network** — Optional BNN with Langevin dynamics MCMC sampling runs in parallel on the same train/test split as the RF, enabling direct model comparison. Produces convergence plots and P10/mean/P90 uncertainty bands. Two implementations available — PyTorch (`bnn_pt.py`) using `torch.distributions.Normal` and TensorFlow (`bnn_tf.py`) using `tensorflow_probability.distributions.Normal`. Toggle via `run_bnn` and `bnn_library` in `testOrg.json`.
 
@@ -66,7 +66,7 @@ Production-Prediction-ML/
 │       ├── dbConfig.py                 # SQLite / PostgreSQL data layer
 │       ├── bnn_pt.py                   # PyTorch BNN + MCMC sampler (torch.distributions)
 │       ├── bnn_tf.py                   # TensorFlow BNN + MCMC sampler (tensorflow_probability)
-│       └── shapAnalysis.py             # SHAP TreeExplainer + plots
+│       └── shapAnalysis.py             # SHAP TreeExplainer (RF) + GradientExplainer (BNN)
 ├── tests/
 │   └── test_calculator.py
 ├── Dockerfile                          # Calculator service image
@@ -129,8 +129,10 @@ All figures save to `Figures and Results/` at runtime and are logged as MLflow a
 - `RF_Final_Fit.png` / `RF_Hyperparameter_Tuning.png`
 - `RF_Histograms.png` / `RF_Production_ScatterPlot.png`
 - `SHAP_Summary_*.png` / `SHAP_Bar_*.png` / `SHAP_Waterfall_*.png`
-- `BNN_Convergence_*.png` / `BNN_Uncertainty_*.png` *(when `run_bnn=1`, PyTorch)*
-- `BNN_TF_Convergence_*.png` / `BNN_TF_Uncertainty_*.png` *(when `run_bnn=1`, TensorFlow)*
+- `BNN_Convergence_*.png` / `BNN_Uncertainty_*.png` *(PyTorch BNN, when `run_bnn=1`)*
+- `BNN_TF_Convergence_*.png` / `BNN_TF_Uncertainty_*.png` *(TensorFlow BNN, when `run_bnn=1`)*
+- `BNN_PT_SHAP_Summary_*.png` / `BNN_PT_SHAP_Bar_*.png` *(PyTorch BNN SHAP)*
+- `BNN_TF_SHAP_Summary_*.png` / `BNN_TF_SHAP_Bar_*.png` *(TensorFlow BNN SHAP)*
 
 Run results are also persisted to the SQL database for downstream UI consumption.
 

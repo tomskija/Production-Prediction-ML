@@ -19,7 +19,7 @@ from sklearn.model_selection import train_test_split
 from joblib import Parallel, delayed
 from tqdm import tqdm
 from matplotlib.patches import Patch
-from utils.shapAnalysis import run_shap_analysis
+from utils.shapAnalysis import run_shap_analysis, run_bnn_shap_analysis
 sns.set_theme(font_scale=0.8)
 warnings.filterwarnings('ignore')
 
@@ -845,5 +845,9 @@ def callSharpAnalysis(inputData={}, p={}, X_train20=[], X_test20=[], y_train20=[
     final_rf = RandomForestRegressor(oob_score=True, max_depth=p['max_depth'], random_state=p['rf_seed'], n_estimators=p['num_trees'], max_features=p['max_features'])
     final_rf.fit(X_train20, y_train20.ravel())
     run_shap_analysis(regressor=final_rf, X_train=X_train20, X_test=X_test20, feature_names=inputData['predictive_features'], path_db=path_db, sampling_method=best_method)
+
+###############################################################################
+def callBNNSharpAnalysis(bnn=None, X_train20=[], X_test20=[], selected_features=[], path_db='', best_method='', bnn_library='pytorch'):
+    run_bnn_shap_analysis(bnn=bnn, X_train=X_train20, X_test=X_test20, feature_names=selected_features, path_db=path_db, sampling_method=best_method, bnn_library=bnn_library)
 
 ###############################################################################
