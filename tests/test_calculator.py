@@ -4,9 +4,11 @@ import json
 import os
 import numpy as np
 from os.path import abspath, join, dirname as d
-from productionPredictionCalculator.Calculator import calculate
+
 root_dir = d(d(abspath(__file__)))
 sys.path.append(root_dir)
+
+from productionPredictionCalculator.Calculator import calculate
 np.random.seed(0)
 
 ###############################################################################
@@ -49,8 +51,8 @@ def test1():
     On first run, saves the fixture automatically.
     """
     ########################################################################################
-    fileNameIn  = join(root_dir, "productionPredictionCalculator/tests/in_json/"  + inFiles[0])
-    fileNameOut = join(root_dir, "productionPredictionCalculator/tests/out_json/" + outFiles[0])
+    fileNameIn  = join(root_dir, "tests/in_jsons/"  + inFiles[0])
+    fileNameOut = join(root_dir, "tests/out_jsons/" + outFiles[0])
     ########################################################################################
     with open(fileNameIn) as f: inJson = json.load(f)
     ########################################################################################
