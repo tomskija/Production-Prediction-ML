@@ -1,6 +1,4 @@
 ###############################################################################
-# Use react/astro vs. streamlit
-# also modal
 import json
 import os
 import mlflow
@@ -51,7 +49,6 @@ def calculate(inJson={}, localTesing=False):
             _, p['max_depth'], p['num_trees'] = hyperparameter_tuning(p=p, path_db=path_db, ArrayVals=ArrayVals, sampling_method=best_method, parameters_rf=parameters_rf, run_sampling_split=inputData['run_sampling_split'], run_test=inputData['run_test'])
             X_train20, X_test20, y_train20, y_test20 = plot_rf_results(df=df, path_db=path_db, ArrayVals=ArrayVals, sampling_method=best_method, parameters_rf=parameters_rf, p=p, min_plot=inputData['min_plot'], max_plot=inputData['max_plot'])
             callSharpAnalysis(inputData={**inputData, 'predictive_features': selected_features}, p=p, X_train20=X_train20, X_test20=X_test20, y_train20=y_train20, path_db=path_db, best_method=best_method)
-            ###################################################################
             ###################################################################
             # BNN — parallel on same train/test split as RF, gated by run_bnn flag
             if inputData['run_bnn']:
