@@ -1,4 +1,30 @@
 {
-    "params": [],
-    "tables": []
+    "params": [
+        {
+            "name": "best_sampling_method",
+            "value": "GMM spherical",
+            "value_type": 2
+        },
+        {
+            "name": "mlflow_run_id",
+            "value": "9077ff5253764624b01ffb4fb1ab19f7",
+            "value_type": 2
+        }
+    ],
+    "tables": [
+        {
+            "name": "selected_features",
+            "array": [
+                "Por",
+                "Brittle",
+                "Latitude",
+                "Longitude"
+            ],
+            "row_headers": [],
+            "column_headers": [],
+            "shape": [
+                4
+            ]
+        }
+    ]
 }
