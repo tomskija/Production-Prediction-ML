@@ -1,6 +1,7 @@
 ###############################################################################
 import sys
 import json
+import os
 import numpy as np
 from os.path import abspath, join, dirname as d
 from productionPredictionCalculator.Calculator import calculate
@@ -51,8 +52,7 @@ def test1():
     fileNameIn  = join(root_dir, "productionPredictionCalculator/tests/in_json/"  + inFiles[0])
     fileNameOut = join(root_dir, "productionPredictionCalculator/tests/out_json/" + outFiles[0])
     ########################################################################################
-    with open(fileNameIn) as f:
-        inJson = json.load(f)
+    with open(fileNameIn) as f: inJson = json.load(f)
     ########################################################################################
     output_wrapper = calculate(inJson=inJson, localTesing=True)
     ########################################################################################
@@ -65,7 +65,6 @@ def test1():
     leftDict = dumpOutputWrapper(output_wrapper=output_wrapper)
     ########################################################################################
     # Save fixture on first run if it doesn't exist
-    import os
     os.makedirs(d(fileNameOut), exist_ok=True)
     if not os.path.exists(fileNameOut):
         saveOutputFixture(output_dict=leftDict, fileName=fileNameOut)
@@ -73,8 +72,7 @@ def test1():
         return
     ########################################################################################
     # Load saved fixture and compare
-    with open(fileNameOut) as f:
-        rightDict = json.load(f)
+    with open(fileNameOut) as f: rightDict = json.load(f)
     ########################################################################################
     varsToCheck = {
         'best_sampling_method': 'string',

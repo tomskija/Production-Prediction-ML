@@ -88,7 +88,7 @@
             },
             {
                 "name": "split_seed_range_end",
-                "value": 100,
+                "value": 10,
                 "valueType": 2
             },
             {
@@ -98,7 +98,7 @@
             },
             {
                 "name": "rf_seed_range_end",
-                "value": 100,
+                "value": 10,
                 "valueType": 2
             },
             {
@@ -108,7 +108,7 @@
             },
             {
                 "name": "run_test",
-                "value": 0,
+                "value": 1,
                 "valueType": 1
             },
             {
