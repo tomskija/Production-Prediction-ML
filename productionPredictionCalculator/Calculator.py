@@ -26,9 +26,8 @@ from utils.utils import (
 ###############################################################################
 def calculate(inJson={}, localTesing=False):
     ###########################################################################
-    setupMLFlow()
-    ###########################################################################
     try:
+        setupMLFlow()
         inputData      = standardInputWrapper(inJson=inJson)
         output_wrapper = standardOutputWrapper()
         inputData      = checkData(inputData=inputData)
@@ -95,7 +94,10 @@ def main():
         inJson = json.load(json_file)
     output_wrapper = calculate(inJson=inJson, localTesing=True)
     if runLocalPytests:
-        output_wrapper.dump_json(join(thisDirName, "../tests/out_jsons/output_example_test" + str(testNum))+'.json')
+        try:
+            output_wrapper.dump_json(join(thisDirName, "../tests/out_jsons/output_example_test" + str(testNum))+'.json')
+        except:
+            print("Had Error")
 
 ###############################################################################
 if __name__ == "__main__": main()

@@ -25,22 +25,19 @@ warnings.filterwarnings('ignore')
 
 ###############################################################################
 def checkData(inputData=[]):
-    # Local/Harding Coding Parameter Values and Namings
+    ###########################################################################
+    # Local/Hard Coding Parameter Values and Names
     inputData['name'] = "Production_Results"
     inputData['plot'] = True
-    inputData['run_sampling_split'] = True
-    inputData['run_test'] = False
-    # This will be a UI parameter soon
-    inputData['auto_select_features'] = False
-    inputData['n_range'] =                   range(inputData['n_range_start'], inputData['n_range_end'])
+    inputData['run_sampling_split']   = True
+    inputData['auto_select_features'] = False # This will be a UI parameter soon
+    ###########################################################################
+    inputData['run_test']                  = bool(inputData['run_test']) if 'run_test' in inputData else False
+    inputData['n_range']                   = range(inputData['n_range_start'], inputData['n_range_end'])
     inputData['kmeans_random_state_range'] = range(inputData['kmeans_random_state_range_start'], inputData['kmeans_random_state_range_end'])
-    inputData['gmm_random_state_range'] =    range(inputData['gmm_random_state_range_start'], inputData['gmm_random_state_range_end'])
-    inputData['split_seed_range'] =          range(inputData['split_seed_range_start'], inputData['split_seed_range_end'])
-    inputData['rf_seed_range'] =             range(inputData['rf_seed_range_start'], inputData['rf_seed_range_end'])
-    print()
-    print('n_range')
-    print(type(inputData['n_range']))
-    print()
+    inputData['gmm_random_state_range']    = range(inputData['gmm_random_state_range_start'], inputData['gmm_random_state_range_end'])
+    inputData['split_seed_range']          = range(inputData['split_seed_range_start'], inputData['split_seed_range_end'])
+    inputData['rf_seed_range']             = range(inputData['rf_seed_range_start'], inputData['rf_seed_range_end'])
     ########################################################################################
     return inputData
 

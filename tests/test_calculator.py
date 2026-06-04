@@ -29,6 +29,19 @@ def dumpOutputWrapper(output_wrapper={}):
     return result
 
 ############################################################################################
+def flattenFixture(fixture={}):
+    """
+    Flatten saved fixture into a single comparable dict.
+    Handles both flat format and params/tables structure.
+    """
+    if 'params' in fixture:
+        result = {}
+        for p in fixture['params']: result[p['name']] = p['value']
+        for t in fixture['tables']: result[t['name']] = t['array']
+        return result
+    return fixture
+
+############################################################################################
 def saveOutputFixture(output_dict={}, fileName=''):
     """
     Save output dict as JSON fixture for future comparison.
@@ -74,7 +87,7 @@ def test1():
         return
     ########################################################################################
     # Load saved fixture and compare
-    with open(fileNameOut) as f: rightDict = json.load(f)
+    with open(fileNameOut) as f: rightDict = flattenFixture(fixture=json.load(f))
     ########################################################################################
     varsToCheck = {
         'best_sampling_method': 'string',
