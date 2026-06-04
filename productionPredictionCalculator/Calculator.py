@@ -1,6 +1,4 @@
 ###############################################################################
-# Use react/astro vs. streamlit
-# also modal
 import json
 import os
 import mlflow
@@ -52,7 +50,6 @@ def calculate(inJson={}, localTesing=False):
             X_train20, X_test20, y_train20, y_test20 = plot_rf_results(df=df, path_db=path_db, ArrayVals=ArrayVals, sampling_method=best_method, parameters_rf=parameters_rf, p=p, min_plot=inputData['min_plot'], max_plot=inputData['max_plot'])
             callSharpAnalysis(inputData={**inputData, 'predictive_features': selected_features}, p=p, X_train20=X_train20, X_test20=X_test20, y_train20=y_train20, path_db=path_db, best_method=best_method)
             ###################################################################
-            ###################################################################
             # BNN — parallel on same train/test split as RF, gated by run_bnn flag
             if inputData['run_bnn']:
                 BNN_cls     = BNN_TF        if inputData['bnn_library'] == 'tensorflow' else BNN_PT
@@ -82,11 +79,23 @@ def calculate(inJson={}, localTesing=False):
 
 ###############################################################################
 def main():
-    # testNum = 1
-    with open(join(dirname(__file__), "tests/testOrg.json")) as json_file:
+    ###########################################################################
+    runLocalPytests = True
+    thisDirName = dirname(__file__)
+    ###########################################################################
+    if runLocalPytests:
+        testNum = 1
+        fileName = "../tests/in_jsons/example_test" + str(testNum) + ".json"
+    else:
+        fileName = "tests/testCase01.json"
+    ###########################################################################
+    fileDirName = join(thisDirName, fileName)
+    ###########################################################################
+    with open(fileDirName) as json_file:
         inJson = json.load(json_file)
     output_wrapper = calculate(inJson=inJson, localTesing=True)
-    # output_wrapper.dump_json(join(thisDirName, "../tests/out_json/output_example_test" + str(testNum)
+    if runLocalPytests:
+        output_wrapper.dump_json(join(thisDirName, "../tests/out_jsons/output_example_test" + str(testNum))+'.json')
 
 ###############################################################################
 if __name__ == "__main__": main()
