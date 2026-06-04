@@ -1,36 +1,94 @@
-"""
-Basic test file for Calculator.py
-Add your actual tests based on your Calculator.py functionality
-"""
-import pytest
+###############################################################################
 import sys
-import os
+import json
+import numpy as np
+from os.path import abspath, join, dirname as d
+from productionPredictionCalculator.Calculator import calculate
+root_dir = d(d(abspath(__file__)))
+sys.path.append(root_dir)
+np.random.seed(0)
 
-# Add the parent directory to Python path to import Calculator
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+###############################################################################
+def getFileString(fileName=''):
+    with open(fileName) as f:
+        return f.read()
 
-try:
-    from productionPredictionCalculator.Calculator import *
-except ImportError:
-    # If Calculator doesn't have specific functions, create mock tests
-    pass
+############################################################################################
+def dumpOutputWrapper(output_wrapper={}):
+    """
+    Flatten output_wrapper params and tables into a single comparable dict.
+    """
+    result = {}
+    for p in output_wrapper.params:
+        result[p['name']] = p['value']
+    for t in output_wrapper.tables:
+        result[t['name']] = t['array']
+    return result
 
-def test_basic_functionality():
-    """Test basic functionality - replace with actual tests"""
-    assert True  # Replace with actual test
+############################################################################################
+def saveOutputFixture(output_dict={}, fileName=''):
+    """
+    Save output dict as JSON fixture for future comparison.
+    """
+    serializable = {}
+    for k, v in output_dict.items():
+        serializable[k] = v if not isinstance(v, (np.ndarray, np.generic)) else v.tolist()
+    with open(fileName, 'w') as f:
+        json.dump(serializable, f, indent=4)
 
-def test_data_loading():
-    """Test data loading functionality - replace with actual tests"""
-    # Example test structure
-    # data = load_production_data()
-    # assert data is not None
-    assert True  # Replace with actual test
+############################################################################################
+inFiles  = ["example_test1.json"]
+outFiles = ["output_example_test1.json"]
 
-def test_calculation():
-    """Test calculation functionality - replace with actual tests"""
-    # Example test structure
-    # result = calculate_forecast(test_data)
-    # assert result == expected_result
-    assert True  # Replace with actual test
+############################################################################################
+def test1():
+    """
+    Smoke test + output comparison for example_test1.json (run_bnn=0, localTesing=True).
+    Runs the full RF pipeline and compares output against saved fixture.
+    On first run, saves the fixture automatically.
+    """
+    ########################################################################################
+    fileNameIn  = join(root_dir, "productionPredictionCalculator/tests/in_json/"  + inFiles[0])
+    fileNameOut = join(root_dir, "productionPredictionCalculator/tests/out_json/" + outFiles[0])
+    ########################################################################################
+    with open(fileNameIn) as f:
+        inJson = json.load(f)
+    ########################################################################################
+    output_wrapper = calculate(inJson=inJson, localTesing=True)
+    ########################################################################################
+    # Basic smoke assertions
+    assert output_wrapper is not None, "calculate() returned None"
+    assert not isinstance(output_wrapper, str), f"calculate() returned error: {output_wrapper}"
+    assert len(output_wrapper.params) > 0, "output_wrapper has no params"
+    assert len(output_wrapper.tables) > 0, "output_wrapper has no tables"
+    ########################################################################################
+    leftDict = dumpOutputWrapper(output_wrapper=output_wrapper)
+    ########################################################################################
+    # Save fixture on first run if it doesn't exist
+    import os
+    os.makedirs(d(fileNameOut), exist_ok=True)
+    if not os.path.exists(fileNameOut):
+        saveOutputFixture(output_dict=leftDict, fileName=fileNameOut)
+        print(f"Fixture saved to {fileNameOut} — re-run to compare")
+        return
+    ########################################################################################
+    # Load saved fixture and compare
+    with open(fileNameOut) as f:
+        rightDict = json.load(f)
+    ########################################################################################
+    varsToCheck = {
+        'best_sampling_method': 'string',
+        'selected_features':    'list',
+    }
+    ########################################################################################
+    for var, varType in varsToCheck.items():
+        assert var in leftDict,  f"'{var}' missing from output_wrapper"
+        assert var in rightDict, f"'{var}' missing from fixture"
+        if varType == 'string':
+            assert leftDict[var] == rightDict[var], f"{var}: '{leftDict[var]}' != '{rightDict[var]}'"
+        elif varType == 'list':
+            assert sorted(leftDict[var]) == sorted(rightDict[var]), f"{var}: {leftDict[var]} != {rightDict[var]}"
+    ########################################################################################
+    print(f"test1 passed — best_sampling_method: {leftDict['best_sampling_method']}, " f"selected_features: {leftDict['selected_features']}")
 
-# Add more tests based on your Calculator.py functionality
+############################################################################################

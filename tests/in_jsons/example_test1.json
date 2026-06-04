@@ -1,0 +1,182 @@
+{
+    "data": {
+        "params": [
+            {
+                "name": "min_pred_norm",
+                "value": -1.3875,
+                "valueType": 2
+            },
+            {
+                "name": "max_pred_norm",
+                "value": 1.3875,
+                "valueType": 2
+            },
+            {
+                "name": "min_target_norm",
+                "value": 0.005,
+                "valueType": 2
+            },
+            {
+                "name": "max_target_norm",
+                "value": 0.995,
+                "valueType": 2
+            },
+            {
+                "name": "plot",
+                "value": 1,
+                "valueType": 1
+            },
+            {
+                "name": "fi_random_state",
+                "value": 5195,
+                "valueType": 2
+            },
+            {
+                "name": "fi_n_estimators",
+                "value": 100,
+                "valueType": 2
+            },
+            {
+                "name": "fi_max_depth",
+                "value": 25,
+                "valueType": 2
+            },
+            {
+                "name": "fi_max_features",
+                "value": 3,
+                "valueType": 2
+            },
+            {
+                "name": "n_range_start",
+                "value": 2,
+                "valueType": 2
+            },
+            {
+                "name": "n_range_end",
+                "value": 30,
+                "valueType": 2
+            },
+            {
+                "name": "kmeans_random_state_range_start",
+                "value": 0,
+                "valueType": 2
+            },
+            {
+                "name": "kmeans_random_state_range_end",
+                "value": 50,
+                "valueType": 2
+            },
+            {
+                "name": "gmm_random_state_range_start",
+                "value": 0,
+                "valueType": 2
+            },
+            {
+                "name": "gmm_random_state_range_end",
+                "value": 50,
+                "valueType": 2
+            },
+            {
+                "name": "target_feature",
+                "value": "Production",
+                "valueType": 0
+            },
+            {
+                "name": "split_seed_range_start",
+                "value": 0,
+                "valueType": 2
+            },
+            {
+                "name": "split_seed_range_end",
+                "value": 100,
+                "valueType": 2
+            },
+            {
+                "name": "rf_seed_range_start",
+                "value": 0,
+                "valueType": 2
+            },
+            {
+                "name": "rf_seed_range_end",
+                "value": 100,
+                "valueType": 2
+            },
+            {
+                "name": "run_sampling_split",
+                "value": 1,
+                "valueType": 1
+            },
+            {
+                "name": "run_test",
+                "value": 0,
+                "valueType": 1
+            },
+            {
+                "name": "min_plot",
+                "value": -1.5,
+                "valueType": 2
+            },
+            {
+                "name": "max_plot",
+                "value": 1.5,
+                "valueType": 2
+            },
+            {
+                "name": "auto_select_features",
+                "value": 0,
+                "valueType": 1
+            },
+            {
+                "name": "mi_threshold",
+                "value": 0.1,
+                "valueType": 2
+            },
+            {
+                "name": "variance_threshold",
+                "value": 0.95,
+                "valueType": 2
+            },
+            {
+                "name": "run_bnn",
+                "value": 0,
+                "valueType": 1
+            },
+            {
+                "name": "bnn_library",
+                "value": "pytorch",
+                "valueType": 0
+            },
+            {
+                "name": "bnn_n_samples",
+                "value": 400,
+                "valueType": 2
+            },
+            {
+                "name": "bnn_burn_in",
+                "value": 0.85,
+                "valueType": 2
+            }
+        ],
+        "tables": [
+            {
+                "name": "predictive_features",
+                "values": [
+                    "Por",
+                    "Brittle",
+                    "Latitude",
+                    "Longitude"
+                ]
+            },
+            {
+                "name": "bnn_hidden_neurons",
+                "values": [
+                    9
+                ]
+            }
+        ]
+    },
+    "metadata": {
+        "calculatorName": "aiProductionPrediction",
+        "jobName": "AI Production Prediction Workflow"
+    }
+}
