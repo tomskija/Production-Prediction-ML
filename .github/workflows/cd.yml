@@ -1,0 +1,20 @@
+name: CD
+
+# Placeholder — wired up in Sprint 3 with Azure/FastAPI/K8s deployment
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [release/dev]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Placeholder
+        run: echo "CD pipeline — deployment target TBD in Sprint 3"

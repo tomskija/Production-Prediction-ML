@@ -28,6 +28,8 @@ Starting from raw petrophysical well data, the pipeline moves through feature en
 
 **MLflow Experiment Tracking** — Every run logs to a persistent MLflow tracking server running as a separate Docker service. Parent runs capture pipeline-level params and artifacts; nested child runs log individual RF training metrics (R², RMSE, MAPE, explained variance) for every seed sweep iteration. BNN metrics logged separately when enabled.
 
+**Testing & CI/CD** — pytest test suite with input/output JSON fixtures for deterministic pipeline validation. GitHub Actions CI workflow triggers on push and pull request to `release/dev` — builds the full Docker Compose stack, runs pytest inside the calculator container, and reports pass/fail. CD pipeline placeholder in place, wired up to deployment target in Sprint 3.
+
 ---
 
 ## Results
@@ -51,6 +53,10 @@ GMM spherical consistently produces the lowest MAPE on the test set, suggesting 
 Production-Prediction-ML/
 ├── .devcontainer/
 │   └── devcontainer.json               # VS Code dev container config
+├── .github/
+│   └── workflows/
+│       ├── ci.yml                      # GitHub Actions CI — pytest on push/PR
+│       └── cd.yml                      # GitHub Actions CD — placeholder (Sprint 3)
 ├── productionPredictionCalculator/
 │   ├── Calculator.py                   # Pipeline orchestrator
 │   ├── Data/
@@ -68,7 +74,12 @@ Production-Prediction-ML/
 │       ├── bnn_tf.py                   # TensorFlow BNN + MCMC sampler (tensorflow_probability)
 │       └── shapAnalysis.py             # SHAP TreeExplainer (RF) + GradientExplainer (BNN)
 ├── tests/
-│   └── test_calculator.py
+│   ├── in_jsons/
+│   │   └── example_test1.json         # CI test input (run_test=1, run_bnn=0)
+│   ├── out_jsons/
+│   │   └── output_example_test1.json  # Saved output fixture for comparison
+│   └── test_calculator.py             # pytest test suite
+├── conftest.py                         # pytest path config
 ├── Dockerfile                          # Calculator service image
 ├── Dockerfile.mlflow                   # MLflow tracking server image
 ├── docker-compose.yml                  # Multi-service orchestration
@@ -93,6 +104,12 @@ Once inside the container, run the pipeline:
 
 ```bash
 python productionPredictionCalculator/Calculator.py
+```
+
+To run the test suite:
+
+```bash
+pytest tests -v
 ```
 
 To view experiment runs, open `http://localhost:5000` in your browser while the containers are running.
@@ -166,4 +183,4 @@ Synthetic unconventional reservoir dataset from [Michael J. Pyrcz (GeostatsGuy)]
 
 ## Dependencies
 
-Python 3.11 · scikit-learn · scipy · numpy · pandas · matplotlib · seaborn · shap · mlflow · torch · tensorflow · tensorflow-probability · psycopg2 · joblib · openpyxl
+Python 3.11 · scikit-learn · scipy · numpy · pandas · matplotlib · seaborn · shap · mlflow · torch · tensorflow · tensorflow-probability · psycopg2 · joblib · openpyxl · pytest
