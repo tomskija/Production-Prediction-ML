@@ -25,15 +25,6 @@ jobs:
             sleep 5
           done
 
-      - name: Download dataset
-        run: |
-          curl -L "https://raw.githubusercontent.com/GeostatsGuy/GeoDataSets/master/unconv_MV.csv" \
-          -o productionPredictionCalculator/Data/Unconventional_Synthetic_Dataset.csv
-
-      - name: Copy dataset into container
-        run: |
-          docker compose cp productionPredictionCalculator/Data/Unconventional_Synthetic_Dataset.csv calculator:/workspace/productionPredictionCalculator/Data/Unconventional_Synthetic_Dataset.csv
-
       - name: Run pytest
         run: |
           docker compose exec -T calculator pytest tests/test_calculator.py -v
