@@ -2,7 +2,7 @@
 
 **By: Jackson R. Tomski**
 
-An end-to-end production ML pipeline for predicting unconventional reservoir oil production. The project combines spatially-aware sampling strategies, automated feature selection, Random Forest regression, Bayesian Neural Network (BNN) inference, SHAP explainability, SQL data persistence, and MLflow experiment tracking — all running inside a Docker Compose multi-service environment.
+An end-to-end production ML pipeline for predicting unconventional reservoir oil production. The project combines spatially-aware sampling strategies, automated feature selection, Random Forest regression, Bayesian Neural Network (BNN) inference, SHAP explainability, SQL data persistence, MLflow experiment tracking, a FastAPI REST layer, and a React dashboard — all running inside a Docker Compose multi-service environment.
 
 ---
 
@@ -24,11 +24,15 @@ Starting from raw petrophysical well data, the pipeline moves through feature en
 
 **Bayesian Neural Network** — Optional BNN with Langevin dynamics MCMC sampling runs in parallel on the same train/test split as the RF, enabling direct model comparison. Produces convergence plots and P10/mean/P90 uncertainty bands. Two implementations available — PyTorch (`bnn_pt.py`) using `torch.distributions.Normal` and TensorFlow (`bnn_tf.py`) using `tensorflow_probability.distributions.Normal`. Toggle via `run_bnn` and `bnn_library` in `testOrg.json`.
 
-**SQL Data Layer** — Well data is read from and results are written back to a database. SQLite is used locally for development; PostgreSQL runs as a dedicated Docker service in production. Run metadata, model performance, and selected features are persisted per run and available for the UI layer to query.
+**SQL Data Layer** — Well data is read from and results are written back to a database. SQLite is used locally for development; PostgreSQL runs as a dedicated Docker service in production. Run metadata, model performance, and selected features are persisted per run and available for the API and UI layers to query.
 
-**MLflow Experiment Tracking** — Every run logs to a persistent MLflow tracking server running as a separate Docker service. Parent runs capture pipeline-level params and artifacts; nested child runs log individual RF training metrics (R², RMSE, MAPE, explained variance) for every seed sweep iteration. BNN metrics logged separately when enabled.
+**MLflow Experiment Tracking** — Every run logs to a persistent MLflow tracking server running as a separate Docker service. Parent runs capture pipeline-level params and artifacts; nested child runs log individual RF training metrics (R², RMSE, MAPE, explained variance) for every seed sweep iteration. BNN metrics logged separately when enabled. Supports Azure ML as a remote tracking backend — auto-detected via environment variables, no code changes required.
 
-**Testing & CI/CD** — pytest test suite with input/output JSON fixtures for deterministic pipeline validation. GitHub Actions CI workflow triggers on push and pull request to `release/dev` — builds the full Docker Compose stack, runs pytest inside the calculator container, and reports pass/fail. CD pipeline placeholder in place, wired up to deployment target in Sprint 3.
+**FastAPI REST Layer** — Async REST API exposing the pipeline via HTTP. Jobs are submitted and return a `job_id` immediately; the pipeline runs in the background via FastAPI `BackgroundTasks`. Clients poll for status and retrieve results from the SQL database. Full OpenAPI docs auto-generated at `http://localhost:8000/docs`.
+
+**React Dashboard** — Dark industrial UI with five tabs: Pipeline (job submission), Jobs (live status polling), Results (query by MLflow run ID), History (full run table from SQL), and Health (API/service connectivity). Built with Vite + React, connects to the FastAPI layer at port 8000.
+
+**Testing & CI/CD** — pytest test suite with input/output JSON fixtures for deterministic pipeline validation. GitHub Actions CI workflow triggers on push and pull request to `release/dev` — builds the full Docker Compose stack, runs pytest inside the calculator container, and reports pass/fail. CD pipeline placeholder in place, wired up to deployment target in Sprint 4.
 
 ---
 
@@ -56,7 +60,14 @@ Production-Prediction-ML/
 ├── .github/
 │   └── workflows/
 │       ├── ci.yml                      # GitHub Actions CI — pytest on push/PR
-│       └── cd.yml                      # GitHub Actions CD — placeholder (Sprint 3)
+│       └── cd.yml                      # GitHub Actions CD — placeholder (Sprint 4)
+├── frontend/                           # React dashboard
+│   ├── index.html
+│   ├── package.json
+│   ├── vite.config.js
+│   └── src/
+│       ├── main.jsx
+│       └── App.jsx                     # Full UI — Pipeline, Jobs, Results, History, Health
 ├── productionPredictionCalculator/
 │   ├── Calculator.py                   # Pipeline orchestrator
 │   ├── Data/
@@ -68,7 +79,8 @@ Production-Prediction-ML/
 │       ├── utils.py                    # Core pipeline functions
 │       ├── inputWrapper.py             # Generic JSON input parser
 │       ├── outputWrapper.py            # Generic output wrapper class
-│       ├── mlFlowConfig.py             # MLflow setup + autolog helpers
+│       ├── mlFlowConfig.py             # MLflow setup — local / Docker / Azure ML
+│       ├── azureConfig.py              # Azure ML workspace URI builder
 │       ├── dbConfig.py                 # SQLite / PostgreSQL data layer
 │       ├── bnn_pt.py                   # PyTorch BNN + MCMC sampler (torch.distributions)
 │       ├── bnn_tf.py                   # TensorFlow BNN + MCMC sampler (tensorflow_probability)
@@ -79,10 +91,11 @@ Production-Prediction-ML/
 │   ├── out_jsons/
 │   │   └── output_example_test1.json  # Saved output fixture for comparison
 │   └── test_calculator.py             # pytest test suite
+├── api.py                              # FastAPI REST layer (6 endpoints, async job pattern)
 ├── conftest.py                         # pytest path config
-├── Dockerfile                          # Calculator service image
+├── Dockerfile                          # Calculator + API service image (Python 3.11 + Node 20)
 ├── Dockerfile.mlflow                   # MLflow tracking server image
-├── docker-compose.yml                  # Multi-service orchestration
+├── docker-compose.yml                  # Multi-service orchestration (calculator, api, mlflow, postgres)
 ├── requirements.txt
 └── README.md
 ```
@@ -98,21 +111,49 @@ git clone https://github.com/tomskija/Production-Prediction-ML.git
 cd Production-Prediction-ML
 ```
 
-Open in VS Code → `Reopen in Container`. The calculator container, MLflow tracking server, and PostgreSQL database all spin up automatically via Docker Compose.
+Open in VS Code → `Reopen in Container`. The calculator container, API server, MLflow tracking server, and PostgreSQL database all spin up automatically via Docker Compose.
 
-Once inside the container, run the pipeline:
-
+**Run the pipeline directly:**
 ```bash
 python productionPredictionCalculator/Calculator.py
 ```
 
-To run the test suite:
+**Start the FastAPI server:**
+```bash
+uvicorn api:app --host 0.0.0.0 --port 8000 --reload
+```
 
+**Start the React frontend:**
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+**Run the test suite:**
 ```bash
 pytest tests -v
 ```
 
-To view experiment runs, open `http://localhost:5000` in your browser while the containers are running.
+| Service       | URL                          |
+|---------------|------------------------------|
+| React UI      | http://localhost:3000        |
+| FastAPI       | http://localhost:8000        |
+| API Docs      | http://localhost:8000/docs   |
+| MLflow UI     | http://localhost:5000        |
+
+---
+
+## API Endpoints
+
+| Method   | Endpoint                  | Description                              |
+|----------|---------------------------|------------------------------------------|
+| `GET`    | `/health`                 | API health check                         |
+| `POST`   | `/calculate`              | Submit async pipeline job, returns job_id|
+| `GET`    | `/runs/{run_id}/status`   | Poll job status (pending/running/complete/failed) |
+| `GET`    | `/results/{run_id}`       | Fetch results from SQL by MLflow run ID  |
+| `GET`    | `/runs`                   | List all past runs from SQL              |
+| `DELETE` | `/runs/{run_id}`          | Delete a run from SQL and job store      |
 
 ---
 
@@ -133,6 +174,17 @@ All parameters are set in `productionPredictionCalculator/tests/testOrg.json`. K
 | `bnn_burn_in` | Burn-in fraction for BNN posterior (default 0.85) |
 | `bnn_hidden_neurons` | Number of neurons in the BNN hidden layer |
 
+**Azure ML** — set the following environment variables to route MLflow tracking to an Azure ML workspace. Leave blank for local dev.
+
+```
+AZURE_SUBSCRIPTION_ID
+AZURE_RESOURCE_GROUP
+AZURE_ML_WORKSPACE
+AZURE_TENANT_ID
+AZURE_CLIENT_ID
+AZURE_CLIENT_SECRET
+```
+
 ---
 
 ## Output
@@ -151,7 +203,7 @@ All figures save to `Figures and Results/` at runtime and are logged as MLflow a
 - `BNN_PT_SHAP_Summary_*.png` / `BNN_PT_SHAP_Bar_*.png` *(PyTorch BNN SHAP)*
 - `BNN_TF_SHAP_Summary_*.png` / `BNN_TF_SHAP_Bar_*.png` *(TensorFlow BNN SHAP)*
 
-Run results are also persisted to the SQL database for downstream UI consumption.
+Run results are also persisted to the SQL database and queryable via the FastAPI layer and React dashboard.
 
 ---
 
@@ -183,4 +235,6 @@ Synthetic unconventional reservoir dataset from [Michael J. Pyrcz (GeostatsGuy)]
 
 ## Dependencies
 
-Python 3.11 · scikit-learn · scipy · numpy · pandas · matplotlib · seaborn · shap · mlflow · torch · tensorflow · tensorflow-probability · psycopg2 · joblib · openpyxl · pytest
+Python 3.11 · scikit-learn · scipy · numpy · pandas · matplotlib · seaborn · shap · mlflow · azureml-mlflow · torch · tensorflow · tensorflow-probability · psycopg2 · joblib · openpyxl · pytest · fastapi · uvicorn · pydantic
+
+Node 20 · React 18 · Vite

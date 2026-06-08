@@ -5,23 +5,32 @@ os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 import mlflow
 import mlflow.sklearn
 import mlflow.tensorflow
+from utils.azureConfig import getAzureMLTrackingURI
 
 ############################################################################################
 def setupMLFlow(experiment_name='production-prediction-rf'):
     """
     Configure MLflow tracking URI and experiment.
-    Reads MLFLOW_TRACKING_URI from environment (set by Docker Compose),
-    falls back to localhost for local dev outside the container.
+    Priority:
+        1. Azure ML  — if AZURE_SUBSCRIPTION_ID, AZURE_RESOURCE_GROUP, AZURE_ML_WORKSPACE are set
+        2. Docker    — if MLFLOW_TRACKING_URI is set (e.g. http://mlflow:5000 via Docker Compose)
+        3. Local     — falls back to http://localhost:5000
 
     :param experiment_name: MLflow experiment name to log runs under
     """
-    tracking_uri = os.environ.get('MLFLOW_TRACKING_URI', 'http://localhost:5000')
+    ########################################################################################
+    azure_uri    = getAzureMLTrackingURI()
+    tracking_uri = azure_uri or os.environ.get('MLFLOW_TRACKING_URI', 'http://localhost:5000')
+    ########################################################################################
     mlflow.set_tracking_uri(tracking_uri)
     mlflow.set_experiment(experiment_name)
-    os.environ['MLFLOW_EXPERIMENT_NAME'] = experiment_name  # add this
-    os.environ['MLFLOW_TRACKING_URI']    = tracking_uri     # add this
+    os.environ['MLFLOW_EXPERIMENT_NAME'] = experiment_name
+    os.environ['MLFLOW_TRACKING_URI']    = tracking_uri
+    ########################################################################################
+    backend = 'Azure ML' if azure_uri else ('Docker' if 'mlflow' in tracking_uri else 'Local')
     print(f"MLflow tracking URI : {tracking_uri}")
     print(f"MLflow experiment   : {experiment_name}")
+    print(f"MLflow backend      : {backend}")
 
 ############################################################################################
 def enable_tf_autolog():
