@@ -6,7 +6,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: rf-production-prediction
+    container_name: production-prediction-local-devcontainer
     volumes:
       - .:/workspace
       - mlruns:/workspace/mlruns

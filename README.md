@@ -2,7 +2,7 @@
 
 **By: Jackson R. Tomski**
 
-An end-to-end production ML pipeline for predicting unconventional reservoir oil production. The project combines spatially-aware sampling strategies, automated feature selection, Random Forest regression, Bayesian Neural Network (BNN) inference, SHAP explainability, SQL data persistence, MLflow experiment tracking, a FastAPI REST layer, and a React dashboard — all running inside a Docker Compose multi-service environment.
+An end-to-end production ML pipeline for predicting unconventional reservoir oil production. The project combines spatially-aware sampling strategies, automated feature selection, Random Forest regression, Bayesian Neural Network (BNN) inference, SHAP explainability, SQL data persistence, MLflow experiment tracking, a FastAPI REST layer, and a React dashboard — all running inside a Docker Compose multi-service environment with a fully working full-stack local development environment.
 
 ---
 
@@ -12,7 +12,7 @@ Starting from raw petrophysical well data, the pipeline moves through feature en
 
 **Feature Engineering** — Sequential normalization pipeline (StandardScaler → RobustScaler → PowerTransformer → MinMaxScaler) applied to raw features to condition the data and reduce outlier effects.
 
-**Feature Selection** — Two modes controlled via `testOrg.json`:
+**Feature Selection** — Two modes configurable via the React dashboard or `POST /calculate` API request body:
 - *User mode* — supply your own feature list directly
 - *Auto mode* — data-driven selection using a rank ensemble of Pearson correlation, Spearman rank correlation, mutual information, and RF feature importance. If average MI falls below a configurable threshold, PCA-based dimensionality reduction is used instead, with component names abbreviated from their top loading features for interpretability.
 
@@ -22,7 +22,7 @@ Starting from raw petrophysical well data, the pipeline moves through feature en
 
 **SHAP Explainability** — TreeExplainer runs on the final best RF model, producing beeswarm summary plots, bar charts, and waterfall plots for individual prediction breakdowns. For the BNN, GradientExplainer provides comparable feature attribution using integrated gradients — works with both PyTorch and TensorFlow implementations. Feature rankings printed to console after every run.
 
-**Bayesian Neural Network** — Optional BNN with Langevin dynamics MCMC sampling runs in parallel on the same train/test split as the RF, enabling direct model comparison. Produces convergence plots and P10/mean/P90 uncertainty bands. Two implementations available — PyTorch (`bnn_pt.py`) using `torch.distributions.Normal` and TensorFlow (`bnn_tf.py`) using `tensorflow_probability.distributions.Normal`. Toggle via `run_bnn` and `bnn_library` in `testOrg.json`.
+**Bayesian Neural Network** — Optional BNN with Langevin dynamics MCMC sampling runs in parallel on the same train/test split as the RF, enabling direct model comparison. Produces convergence plots and P10/mean/P90 uncertainty bands. Two implementations available — PyTorch (`bnn_pt.py`) using `torch.distributions.Normal` and TensorFlow (`bnn_tf.py`) using `tensorflow_probability.distributions.Normal`. Toggle via `run_bnn` and `bnn_library` in the API request body.
 
 **SQL Data Layer** — Well data is read from and results are written back to a database. SQLite is used locally for development; PostgreSQL runs as a dedicated Docker service in production. Run metadata, model performance, and selected features are persisted per run and available for the API and UI layers to query.
 
@@ -30,9 +30,9 @@ Starting from raw petrophysical well data, the pipeline moves through feature en
 
 **FastAPI REST Layer** — Async REST API exposing the pipeline via HTTP. Jobs are submitted and return a `job_id` immediately; the pipeline runs in the background via FastAPI `BackgroundTasks`. Clients poll for status and retrieve results from the SQL database. Full OpenAPI docs auto-generated at `http://localhost:8000/docs`.
 
-**React Dashboard** — Dark industrial UI with five tabs: Pipeline (job submission), Jobs (live status polling), Results (query by MLflow run ID), History (full run table from SQL), and Health (API/service connectivity). Built with Vite + React, connects to the FastAPI layer at port 8000.
+**React Dashboard** — Dark industrial UI with five tabs: Pipeline (job submission with live JSON config), Jobs (real-time status polling with job queue), Results (query by MLflow run ID), History (full run table from SQL with delete), and Health (API/service connectivity). Built with Vite + React 18, connects to the FastAPI layer at port 8000. Full-stack local development environment — React frontend → FastAPI → ML pipeline → PostgreSQL/SQLite + MLflow, all running in Docker Compose.
 
-**Testing & CI/CD** — pytest test suite with input/output JSON fixtures for deterministic pipeline validation. GitHub Actions CI workflow triggers on push and pull request to `release/dev` — builds the full Docker Compose stack, runs pytest inside the calculator container, and reports pass/fail. CD pipeline placeholder in place, wired up to deployment target in Sprint 4.
+**Testing & CI/CD** — pytest test suite with input/output JSON fixtures for deterministic pipeline validation. Test cases can be added to `productionPredictionCalculator/tests/` for manual backend runs; `tests/in_jsons/` is reserved for pytest CI fixtures. GitHub Actions CI workflow triggers on push and pull request to `release/dev` — builds the full Docker Compose stack, runs pytest inside the calculator container, and reports pass/fail. CD pipeline placeholder in place, wired up to deployment target in Sprint 4.
 
 ---
 
@@ -56,12 +56,12 @@ GMM spherical consistently produces the lowest MAPE on the test set, suggesting 
 ```
 Production-Prediction-ML/
 ├── .devcontainer/
-│   └── devcontainer.json               # VS Code dev container config
+│   └── devcontainer.json               # VS Code dev container config (ports 3000, 5000, 8000)
 ├── .github/
 │   └── workflows/
 │       ├── ci.yml                      # GitHub Actions CI — pytest on push/PR
 │       └── cd.yml                      # GitHub Actions CD — placeholder (Sprint 4)
-├── frontend/                           # React dashboard
+├── frontend/                           # React dashboard (Vite + React 18)
 │   ├── index.html
 │   ├── package.json
 │   ├── vite.config.js
@@ -73,8 +73,7 @@ Production-Prediction-ML/
 │   ├── Data/
 │   │   ├── Unconventional_Synthetic_Dataset.csv
 │   │   └── README.md
-│   ├── tests/
-│   │   └── testOrg.json               # Input config (params + feature list)
+│   ├── tests/                          # Dev test cases for manual pipeline runs
 │   └── utils/
 │       ├── utils.py                    # Core pipeline functions
 │       ├── inputWrapper.py             # Generic JSON input parser
@@ -86,10 +85,8 @@ Production-Prediction-ML/
 │       ├── bnn_tf.py                   # TensorFlow BNN + MCMC sampler (tensorflow_probability)
 │       └── shapAnalysis.py             # SHAP TreeExplainer (RF) + GradientExplainer (BNN)
 ├── tests/
-│   ├── in_jsons/
-│   │   └── example_test1.json         # CI test input (run_test=1, run_bnn=0)
-│   ├── out_jsons/
-│   │   └── output_example_test1.json  # Saved output fixture for comparison
+│   ├── in_jsons/                       # pytest CI input fixtures
+│   ├── out_jsons/                      # pytest CI output fixtures
 │   └── test_calculator.py             # pytest test suite
 ├── api.py                              # FastAPI REST layer (6 endpoints, async job pattern)
 ├── conftest.py                         # pytest path config
@@ -111,7 +108,7 @@ git clone https://github.com/tomskija/Production-Prediction-ML.git
 cd Production-Prediction-ML
 ```
 
-Open in VS Code → `Reopen in Container`. The calculator container, API server, MLflow tracking server, and PostgreSQL database all spin up automatically via Docker Compose.
+Open in VS Code → `Reopen in Container`. The calculator container, API server, MLflow tracking server, and PostgreSQL database all spin up automatically via Docker Compose. `npm install` runs automatically via `postCreateCommand`.
 
 **Run the pipeline directly:**
 ```bash
@@ -125,9 +122,7 @@ uvicorn api:app --host 0.0.0.0 --port 8000 --reload
 
 **Start the React frontend:**
 ```bash
-cd frontend
-npm install
-npm run dev
+cd frontend && npm run dev
 ```
 
 **Run the test suite:**
@@ -146,20 +141,20 @@ pytest tests -v
 
 ## API Endpoints
 
-| Method   | Endpoint                  | Description                              |
-|----------|---------------------------|------------------------------------------|
-| `GET`    | `/health`                 | API health check                         |
-| `POST`   | `/calculate`              | Submit async pipeline job, returns job_id|
+| Method   | Endpoint                  | Description                                       |
+|----------|---------------------------|---------------------------------------------------|
+| `GET`    | `/health`                 | API health check                                  |
+| `POST`   | `/calculate`              | Submit async pipeline job, returns job_id         |
 | `GET`    | `/runs/{run_id}/status`   | Poll job status (pending/running/complete/failed) |
-| `GET`    | `/results/{run_id}`       | Fetch results from SQL by MLflow run ID  |
-| `GET`    | `/runs`                   | List all past runs from SQL              |
-| `DELETE` | `/runs/{run_id}`          | Delete a run from SQL and job store      |
+| `GET`    | `/results/{run_id}`       | Fetch results from SQL by MLflow run ID           |
+| `GET`    | `/runs`                   | List all past runs from SQL                       |
+| `DELETE` | `/runs/{run_id}`          | Delete a run from SQL and job store               |
 
 ---
 
 ## Configuration
 
-All parameters are set in `productionPredictionCalculator/tests/testOrg.json`. Key options:
+Pipeline parameters are configured via the React dashboard or directly via the `POST /calculate` API request body. Key options:
 
 | Parameter | Description |
 |-----------|-------------|

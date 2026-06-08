@@ -17,14 +17,24 @@
     }
   },
   "forwardPorts": [
-    5000
+    3000,
+    5000,
+    8000
   ],
   "portsAttributes": {
+    "3000": {
+      "label": "React UI",
+      "onAutoForward": "notify"
+    },
     "5000": {
       "label": "MLflow UI",
       "onAutoForward": "notify"
+    },
+    "8000": {
+      "label": "FastAPI",
+      "onAutoForward": "notify"
     }
   },
-  "postCreateCommand": "",
+  "postCreateCommand": "cd /workspace/frontend && npm install",
   "remoteUser": "root"
 }
