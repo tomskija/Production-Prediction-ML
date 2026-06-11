@@ -1,12 +1,16 @@
 ###############################################################################
+import os
+os.environ['PYTHONWARNINGS'] = 'ignore'
+
+import warnings
+warnings.filterwarnings('ignore')
+
 import numpy as np
 import pandas as pd
-import warnings
 import shutil
 import seaborn as sns
 import matplotlib.pyplot as plt
 import mlflow
-import os
 from os.path import dirname, join
 from scipy import stats
 from scipy.spatial import Voronoi, voronoi_plot_2d
@@ -21,7 +25,6 @@ from tqdm import tqdm
 from matplotlib.patches import Patch
 from utils.shapAnalysis import run_shap_analysis, run_bnn_shap_analysis
 sns.set_theme(font_scale=0.8)
-warnings.filterwarnings('ignore')
 
 ###############################################################################
 def checkData(inputData=[]):
@@ -38,6 +41,8 @@ def checkData(inputData=[]):
     inputData['gmm_random_state_range']    = range(inputData['gmm_random_state_range_start'], inputData['gmm_random_state_range_end'])
     inputData['split_seed_range']          = range(inputData['split_seed_range_start'], inputData['split_seed_range_end'])
     inputData['rf_seed_range']             = range(inputData['rf_seed_range_start'], inputData['rf_seed_range_end'])
+    ########################################################################################
+    inputData['run_bnn_split_fast']        = bool(inputData['run_bnn_split_fast']) if 'run_bnn_split_fast' in inputData else False
     ########################################################################################
     return inputData
 
@@ -848,3 +853,128 @@ def callBNNSharpAnalysis(bnn=None, X_train20=[], X_test20=[], selected_features=
     run_bnn_shap_analysis(bnn=bnn, X_train=X_train20, X_test=X_test20, feature_names=selected_features, path_db=path_db, sampling_method=best_method, bnn_library=bnn_library)
 
 ###############################################################################
+
+###############################################################################
+def find_best_bnn_seeds(predictive_features=[], target_feature='Production', ArrayVals=[], sampling_method='Random',
+                        parameters_rf=[], path_db='', split_seed_range=range(0, 100),
+                        bnn_hidden_neurons=[9], bnn_library='pytorch', run_bnn_split_fast=False):
+    ########################################################################################
+    """
+    Find the optimal train/test split seed for BNN independently of RF.
+    Clustering result (ArrayVals) is shared with RF — only the split seed sweep is model-specific.
+
+    Two modes gated by run_bnn_split_fast:
+        False (default) — full MCMC sampling per split seed (accurate, slow)
+        True            — fast forward pass only (approximate, fast — useful for dev)
+
+    :param predictive_features:  List of predictive feature column names
+    :param target_feature:       Target feature column name
+    :param ArrayVals:            Cluster arrays (shared from RF clustering step)
+    :param sampling_method:      Sampling method string
+    :param parameters_rf:        Array of feature column names including target
+    :param path_db:              Path to save output figures
+    :param split_seed_range:     Range of train/test split seeds to sweep
+    :param bnn_hidden_neurons:   Hidden neuron count for BNN topology
+    :param bnn_library:          'pytorch' or 'tensorflow'
+    :param run_bnn_split_fast:   False = full MCMC per seed, True = fast forward pass
+    :return:                     bnn_p dict with best split seed
+    """
+    ########################################################################################
+    if bnn_library == 'tensorflow':
+        from utils.bnn_tf import BNN, MCMCSampler
+    else:
+        from utils.bnn_pt import BNN, MCMCSampler
+    ########################################################################################
+    topology   = [len(predictive_features)] + bnn_hidden_neurons + [1]
+    print(f"Sweeping BNN split seeds ({'fast forward pass' if run_bnn_split_fast else 'full MCMC'})...")
+    ########################################################################################
+    def eval_bnn_split(split_seed=0):
+        try:
+            X_train, X_test, y_train, y_test = get_train_test_split(
+                ArrayVals=ArrayVals, sampling_method=sampling_method,
+                parameters_rf=parameters_rf, split_seed=split_seed,
+                predictive_features=predictive_features, target_feature=target_feature
+            )
+            ################################################################################
+            if run_bnn_split_fast:
+                # Fast path — random weight forward pass, just evaluating split quality
+                bnn  = BNN(topology=topology)
+                pred = bnn.predict(x_np=X_test) if bnn_library == 'pytorch' else bnn.predict(x_np=X_test)
+                pred = pred.ravel(); y   = y_test.ravel()
+                ss_res = np.sum((y - pred) ** 2); ss_tot = np.sum((y - np.mean(y)) ** 2)
+                r2     = float(1 - ss_res / ss_tot) if ss_tot != 0 else 0.0
+            else:
+                # Full MCMC path — accurate split quality estimate
+                bnn     = BNN(topology=topology)
+                sampler = MCMCSampler(bnn=bnn, use_langevin=True, langevin_prob=0.5)
+                results = sampler.sample(
+                    x_train=X_train, y_train=y_train.reshape(-1, 1),
+                    x_test=X_test,   y_test=y_test.reshape(-1, 1),
+                    n_samples=50, burn_in=0.5, verbose=False
+                )
+                burnin_idx = results['burnin_idx']
+                r2         = float(results['r2_test'][burnin_idx:].mean())
+            ################################################################################
+            return r2, split_seed
+        except Exception:
+            return -1.0, split_seed
+    ########################################################################################
+    seed_results = Parallel(n_jobs=-1)(
+        delayed(eval_bnn_split)(split_seed=ss)
+        for ss in tqdm(split_seed_range, desc='Sweeping BNN split seeds')
+    )
+    ########################################################################################
+    best_r2         = -1.0
+    best_split_seed = 0
+    for r2, ss in seed_results:
+        if r2 > best_r2:
+            best_r2         = r2
+            best_split_seed = ss
+    ########################################################################################
+    print(f"BNN Best split_seed: {best_split_seed} | Best R2: {round(best_r2 * 100, 3)}%")
+    ########################################################################################
+    if mlflow.active_run():
+        mlflow.log_params({'bnn_best_split_seed': best_split_seed})
+        mlflow.log_metric('bnn_best_seed_r2', round(best_r2 * 100, 3))
+    ########################################################################################
+    bnn_p = dict(split_seed=best_split_seed, hidden_neurons=bnn_hidden_neurons,
+                 topology=topology, print_str=sampling_method)
+    ########################################################################################
+    str01 = f"BNN sampling_method:  {sampling_method}"
+    str02 = f"BNN best_split_seed:  {best_split_seed}"
+    str03 = f"BNN best_r2:          {round(best_r2 * 100, 3)}%"
+    str04 = f"BNN topology:         {topology}"
+    for s in [str01, str02, str03, str04]: print(s)
+    ########################################################################################
+    return bnn_p
+
+############################################################################################
+def get_train_test_split(ArrayVals=[], sampling_method='Random', parameters_rf=[], split_seed=0, predictive_features=[], target_feature='Production'):
+    ########################################################################################
+    """
+    Extract train/test arrays for a given split seed and sampling method.
+    Mirrors the split logic in plot_rf_results — used by BNN pipeline to get
+    its own optimal split independently of RF.
+
+    :param ArrayVals:           Cluster arrays from dynamicallyPickClustering
+    :param sampling_method:     Sampling method string
+    :param parameters_rf:       Array of feature column names including target
+    :param split_seed:          Train/test split random seed
+    :param predictive_features: List of predictive feature column names
+    :param target_feature:      Target feature column name
+    :return:                    X_train, X_test, y_train, y_test as numpy arrays
+    """
+    ########################################################################################
+    if sampling_method == 'Random':
+        all_data  = np.concatenate([av for av in ArrayVals], axis=0)
+        df_all    = pd.DataFrame(all_data, columns=parameters_rf)
+        pred_norm = df_all[[c for c in parameters_rf if c != target_feature]].copy()
+        resp_norm = df_all[[target_feature]].copy()
+        X_train, X_test, y_train, y_test = train_test_split(pred_norm, resp_norm, test_size=0.3, random_state=split_seed)
+        return np.asarray(X_train), np.asarray(X_test), np.asarray(y_train), np.asarray(y_test)
+    else:
+        training_data, testing_data = training_testing_datasets1(rnd_state=split_seed, shuffle_bool=False, test_size=0.3, ArrayVals=ArrayVals, sample_method=sampling_method)
+        traindata = np.asarray(training_data[parameters_rf].to_numpy())
+        testdata  = np.asarray(testing_data[parameters_rf].to_numpy())
+        return traindata[:, :-1], testdata[:, :-1], traindata[:, -1], testdata[:, -1]
+    

@@ -37,3 +37,5 @@ Thumbs.db
 Figures and Results
 productionPredictionCalculator/Data
 mlruns
+frontend/node_modules/
+frontend/node_modules/.package-lock.json
