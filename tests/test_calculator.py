@@ -1,6 +1,7 @@
 ###############################################################################
 import sys
 import json
+import asyncio
 import os
 import numpy as np
 from os.path import abspath, join, dirname as d
@@ -69,7 +70,7 @@ def test1():
     ########################################################################################
     with open(fileNameIn) as f: inJson = json.load(f)
     ########################################################################################
-    output_wrapper = calculate(inJson=inJson, localTesing=True)
+    output_wrapper = asyncio.run(calculate(inJson=inJson, localTesing=True))
     ########################################################################################
     # Basic smoke assertions
     assert output_wrapper is not None, "calculate() returned None"

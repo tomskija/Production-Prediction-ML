@@ -142,6 +142,11 @@
                 "valueType": 1
             },
             {
+                "name": "run_bnn_split_fast",
+                "value": 0,
+                "valueType": 1
+            },
+            {
                 "name": "bnn_library",
                 "value": "pytorch",
                 "valueType": 0
