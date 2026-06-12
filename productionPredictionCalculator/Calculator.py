@@ -24,7 +24,7 @@ from utils.utils import (
 )
 
 ###############################################################################
-async def calculate_async(inJson={}, localTesing=False):
+async def calculate(inJson={}, localTesing=False):
     ###########################################################################
     setupMLFlow()
     ###########################################################################
@@ -38,18 +38,22 @@ async def calculate_async(inJson={}, localTesing=False):
         with mlflow.start_run(run_name=f"pipeline_{inputData['name']}") as run:
             mlflow.set_tag('sampling_method', 'TBD')
             mlflow.log_params({
-                'name': inputData['name'], 'target_feature': inputData['target_feature'],
-                'run_test': inputData['run_test'], 'run_sampling_split': inputData['run_sampling_split'],
+                'name':                 inputData['name'],
+                'target_feature':       inputData['target_feature'],
+                'run_test':             inputData['run_test'],
+                'run_sampling_split':   inputData['run_sampling_split'],
                 'auto_select_features': inputData['auto_select_features'],
-                'mi_threshold': inputData['mi_threshold'], 'variance_threshold': inputData['variance_threshold'],
-                'run_bnn': inputData['run_bnn'], 'run_bnn_split_fast': inputData['run_bnn_split_fast']
+                'mi_threshold':         inputData['mi_threshold'],
+                'variance_threshold':   inputData['variance_threshold'],
+                'run_bnn':              inputData['run_bnn'],
+                'run_bnn_split_fast':   inputData['run_bnn_split_fast']
             })
             ###################################################################
             # Shared steps — feature engineering, selection, clustering
             df = feature_engineering(df_data1=df, min_pred_norm=inputData['min_pred_norm'], max_pred_norm=inputData['max_pred_norm'], min_target_norm=inputData['min_target_norm'], max_target_norm=inputData['max_target_norm'], path_db=path_db, plot=inputData['plot'])
             df, selected_features, selection_mode = analyzeAndSelectFeatures(df=df, path_db=path_db, target_feature=inputData['target_feature'], predictive_features=inputData['predictive_features'], auto_select_features=inputData['auto_select_features'], mi_threshold=inputData['mi_threshold'], variance_threshold=inputData['variance_threshold'], random_state=inputData['fi_random_state'], n_estimators=inputData['fi_n_estimators'], max_depth=inputData['fi_max_depth'], max_features=inputData['fi_max_features'], plot=inputData['plot'])
             mlflow.log_param('feature_selection_mode', selection_mode)
-            mlflow.log_param('selected_features',      str(selected_features))
+            mlflow.log_param('selected_features', str(selected_features))
             parameters_rf = selected_features + [inputData['target_feature']]
             df, ArrayVals, best_method = dynamicallyPickClustering(df=df, path_db=path_db, n_range=inputData['n_range'], kmeans_random_state_range=inputData['kmeans_random_state_range'], gmm_random_state_range=inputData['gmm_random_state_range'])
             mlflow.set_tag('sampling_method', best_method)
@@ -86,8 +90,8 @@ async def calculate_async(inJson={}, localTesing=False):
             })
             ###################################################################
             output_wrapper.add_param(name='best_sampling_method', value=best_method)
-            output_wrapper.add_param(name='mlflow_run_id',        value=run.info.run_id)
-            output_wrapper.add_table(name='selected_features',    array=selected_features)
+            output_wrapper.add_param(name='mlflow_run_id', value=run.info.run_id)
+            output_wrapper.add_table(name='selected_features', array=selected_features)
         #######################################################################
         db.close()
         print("Completed Calculation")
@@ -97,14 +101,9 @@ async def calculate_async(inJson={}, localTesing=False):
         return str(e)
 
 ###############################################################################
-def calculate(inJson={}, localTesing=False):
-    """Sync wrapper around calculate_async — maintains backward compatibility."""
-    return asyncio.run(calculate_async(inJson=inJson, localTesing=localTesing))
-
-###############################################################################
-def main():
+async def main():
     ###########################################################################
-    runLocalPytests = True
+    runLocalPytests = False
     thisDirName = dirname(__file__)
     ###########################################################################
     if runLocalPytests:
@@ -117,13 +116,13 @@ def main():
     ###########################################################################
     with open(fileDirName) as json_file:
         inJson = json.load(json_file)
-    output_wrapper = calculate(inJson=inJson, localTesing=True)
+    output_wrapper = await calculate(inJson=inJson, localTesing=True)
+    ###########################################################################
     if runLocalPytests:
-        try:
-            output_wrapper.dump_json(join(thisDirName, "../tests/out_jsons/output_example_test" + str(testNum))+'.json')
-        except:
-            print("Had Error")
-
+        output_wrapper.dump_json(join(thisDirName, "../tests/out_jsons/output_example_test" + str(testNum))+'.json')
+    
 ###############################################################################
-if __name__ == "__main__": main()
+if __name__ == "__main__":
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(main())
 ###############################################################################
