@@ -12,6 +12,9 @@ from pydantic import BaseModel
 from typing import Optional
 from productionPredictionCalculator.Calculator import calculate
 from productionPredictionCalculator.utils.dbConfig import DBConfig
+from productionPredictionCalculator.utils.schema import getSchema
+
+CALCULATOR_NAME = 'ppml'
 
 ############################################################################################
 app = FastAPI(
@@ -70,7 +73,8 @@ def run_pipeline(job_id='', inJson={}, localTesing=True):
     ########################################################################################
     try:
         job_store[job_id]['status'] = 'running'
-        output_wrapper              = calculate(inJson=inJson, localTesing=localTesing)
+        # calculate() is async, so it gets its own event loop in this background thread
+        output_wrapper              = asyncio.run(calculate(inJson=inJson, localTesing=localTesing))
         ########################################################################################
         if isinstance(output_wrapper, str):
             job_store[job_id]['status']    = 'failed'
@@ -79,6 +83,8 @@ def run_pipeline(job_id='', inJson={}, localTesing=True):
             return
         ########################################################################################
         mlflow_run_id = next((p['value'] for p in output_wrapper.params if p['name'] == 'mlflow_run_id'), None)
+        job_store[job_id]['output']        = {**{p['name']: p['value'] for p in output_wrapper.params},
+                                              **{t['name']: t['array'] for t in output_wrapper.tables}}
         job_store[job_id]['status']        = 'complete'
         job_store[job_id]['completed']     = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         job_store[job_id]['mlflow_run_id'] = mlflow_run_id
@@ -93,7 +99,24 @@ def health():
     """
     Health check — confirms API is running.
     """
-    return {"status": "ok", "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+    return {"status": "ok", "calculator": CALCULATOR_NAME, "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+############################################################################################
+@app.get("/ready")
+def ready():
+    """
+    Readiness check, confirms the calculator and schema load.
+    """
+    schema = getSchema()
+    return {"ready": True, "calculator": CALCULATOR_NAME, "n_fields": sum(len(g['fields']) for g in schema['groups'])}
+
+############################################################################################
+@app.get("/schema")
+def schema():
+    """
+    Input form definition the UI uses to build the calculator page.
+    """
+    return getSchema()
 
 ############################################################################################
 @app.post("/calculate", response_model=JobStatusResponse)
@@ -112,6 +135,7 @@ def submit_job(request: CalculateRequest, background_tasks: BackgroundTasks):
         'completed':     None,
         'error':         None,
         'mlflow_run_id': None,
+        'output':        None,
     }
     background_tasks.add_task(run_pipeline, job_id=job_id, inJson=request.inJson, localTesing=request.localTesing)
     return job_store[job_id]
@@ -126,6 +150,25 @@ def get_run_status(run_id: str):
     if run_id not in job_store:
         raise HTTPException(status_code=404, detail=f"Job {run_id} not found")
     return job_store[run_id]
+
+############################################################################################
+@app.get("/jobs/{job_id}/output")
+def get_job_output(job_id: str):
+    """
+    Output wrapper (params and tables flattened) for a finished job, by job_id.
+    """
+    if job_id not in job_store:
+        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+    job = job_store[job_id]
+    return {"job_id": job_id, "calculator": CALCULATOR_NAME, "status": job['status'], "error": job['error'], "output": job.get('output')}
+
+############################################################################################
+@app.get("/jobs", response_model=list[JobStatusResponse])
+def list_jobs(limit: int = 50):
+    """
+    All jobs this API has seen since it started, newest first.
+    """
+    return sorted(job_store.values(), key=lambda j: j['submitted'], reverse=True)[:limit]
 
 ############################################################################################
 @app.get("/results/{run_id}", response_model=RunResult)

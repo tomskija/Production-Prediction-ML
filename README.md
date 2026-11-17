@@ -110,8 +110,12 @@ pytest tests -v
 | Method   | Endpoint                | Description                                        |
 |----------|-------------------------|----------------------------------------------------|
 | `GET`    | `/health`               | Check if the API is running                        |
+| `GET`    | `/ready`                | Check the calculator and its schema load           |
+| `GET`    | `/schema`               | Input form definition used by ML-Platform-UI       |
 | `POST`   | `/calculate`            | Submit a pipeline run, returns `job_id` immediately |
 | `GET`    | `/runs/{run_id}/status` | Poll run status: pending / running / complete / failed |
+| `GET`    | `/jobs/{job_id}/output` | Output params and tables for a finished job        |
+| `GET`    | `/jobs`                 | List every job the API has seen since it started   |
 | `GET`    | `/results/{run_id}`     | Fetch results from SQL by MLflow run ID            |
 | `GET`    | `/runs`                 | List all past runs                                 |
 | `DELETE` | `/runs/{run_id}`        | Delete a run from SQL and the job store            |
@@ -186,6 +190,7 @@ Production-Prediction-ML/
 │       ├── bnn_pt.py                   # PyTorch BNN + Langevin MCMC
 │       ├── bnn_tf.py                   # TensorFlow BNN + Langevin MCMC
 │       ├── shapAnalysis.py             # SHAP for RF and BNN
+│       ├── schema.py                   # Input form definition served at /schema
 │       ├── mlFlowConfig.py             # MLflow: local / Docker / Azure ML
 │       ├── azureConfig.py              # Azure ML URI builder
 │       ├── dbConfig.py                 # SQLite / PostgreSQL
