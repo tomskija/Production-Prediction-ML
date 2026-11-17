@@ -2,9 +2,9 @@
 
 **By: Jackson R. Tomski**
 
-This project builds a full-stack production ML system for predicting unconventional reservoir oil output — from raw well data all the way to a running web dashboard. It's designed the way real ML applications are built: modular pipeline, REST API, SQL persistence, experiment tracking, and a React frontend, all containerized and running locally with Docker Compose.
+This project builds a full-stack production ML system for predicting unconventional reservoir oil output, from raw well data all the way to a running web dashboard. It's designed the way real ML applications are built: modular pipeline, REST API, SQL persistence, experiment tracking, and a React frontend, all containerized and running locally with Docker Compose.
 
-The central research question driving the ML work: **does how you spatially split your training data affect model performance and generalization?** The pipeline answers this by automatically finding the best geographic clustering strategy and letting both the Random Forest and Bayesian Neural Network independently find their optimal train/test splits — then comparing results side by side.
+The central research question driving the ML work: **does how you spatially split your training data affect model performance and generalization?** The pipeline answers this by automatically finding the best geographic clustering strategy and letting both the Random Forest and Bayesian Neural Network independently find their optimal train/test splits, then comparing results side by side.
 
 ---
 
@@ -14,21 +14,21 @@ The central research question driving the ML work: **does how you spatially spli
 
 The pipeline runs through six stages after loading the data:
 
-1. **Feature Engineering** — four sequential scalers (StandardScaler → RobustScaler → PowerTransformer → MinMaxScaler) normalize features and the production target independently.
+1. **Feature Engineering:** four sequential scalers (StandardScaler → RobustScaler → PowerTransformer → MinMaxScaler) normalize features and the production target independently.
 
-2. **Feature Selection** — either user-supplied or automatic. In auto mode, a rank ensemble of Pearson correlation, Spearman correlation, mutual information, and RF feature importance selects the best features. If the average mutual information is too low, it falls back to PCA and names the components from their top loadings.
+2. **Feature Selection:** either user-supplied or automatic. In auto mode, a rank ensemble of Pearson correlation, Spearman correlation, mutual information, and RF feature importance selects the best features. If the average mutual information is too low, it falls back to PCA and names the components from their top loadings.
 
-3. **Spatial Clustering** — a parallelized silhouette score sweep across GMM (four covariance types) and K-Means finds the best way to group wells geographically. These clusters drive stratified train/test splits so the model trains and tests on spatially representative subsets.
+3. **Spatial Clustering:** a parallelized silhouette score sweep across GMM (four covariance types) and K-Means finds the best way to group wells geographically. These clusters drive stratified train/test splits so the model trains and tests on spatially representative subsets.
 
-4. **Hyperparameter Tuning** — parallelized sweep over 10,000+ RF seed combinations, max depth (1–45), and number of trees (1–200).
+4. **Hyperparameter Tuning:** parallelized sweep over 10,000+ RF seed combinations, max depth (1–45), and number of trees (1–200).
 
-5. **SHAP Explainability** — TreeExplainer on the RF and GradientExplainer on the BNN both produce feature attribution plots so you can see what's driving predictions.
+5. **SHAP Explainability:** TreeExplainer on the RF and GradientExplainer on the BNN both produce feature attribution plots so you can see what's driving predictions.
 
-6. **RF vs BNN Comparison** — once both models finish (running concurrently via `asyncio.gather`), a side-by-side chart compares their test metrics. RF gives point estimates; BNN gives posterior mean ± 1σ across all post burn-in MCMC samples.
+6. **RF vs BNN Comparison:** once both models finish (running concurrently via `asyncio.gather`), a side-by-side chart compares their test metrics. RF gives point estimates; BNN gives posterior mean ± 1σ across all post burn-in MCMC samples.
 
 ### Bayesian Neural Network
 
-The BNN runs Langevin dynamics MCMC to sample the posterior over network weights — giving calibrated uncertainty estimates (P10/mean/P90) rather than a single prediction. Two implementations are available: PyTorch (`torch.distributions`) and TensorFlow (`tensorflow-probability`). Both find their own optimal spatial split independently of the RF, which is the scientifically correct approach since the two models have different inductive biases.
+The BNN runs Langevin dynamics MCMC to sample the posterior over network weights, giving calibrated uncertainty estimates (P10/mean/P90) rather than a single prediction. Two implementations are available: PyTorch (`torch.distributions`) and TensorFlow (`tensorflow-probability`). Both find their own optimal spatial split independently of the RF, which is the scientifically correct approach since the two models have different inductive biases.
 
 A key design choice: the BNN split seed sweep can run full MCMC (default, accurate) or a fast forward pass approximation (useful during development), gated by the `run_bnn_split_fast` flag.
 
@@ -37,16 +37,16 @@ A key design choice: the BNN split seed sweep can run full MCMC (default, accura
 ```
 React Dashboard (port 3000)
     ↓
-FastAPI REST API (port 8000) — async job submission, status polling, results retrieval
+FastAPI REST API (port 8000): async job submission, status polling, results retrieval
     ↓
-ML Pipeline (Calculator.py) — RF + BNN via asyncio.gather
+ML Pipeline (Calculator.py): RF + BNN via asyncio.gather
     ↓
-PostgreSQL / SQLite — run results persisted per job
+PostgreSQL / SQLite: run results persisted per job
     ↓
-MLflow (port 5000) — experiment tracking, nested runs, artifact storage
+MLflow (port 5000): experiment tracking, nested runs, artifact storage
 ```
 
-The API follows an async job pattern — submit a run, get a `job_id` back immediately, poll for status, retrieve results once complete. This is the same pattern used in production ML serving systems.
+The API follows an async job pattern: submit a run, get a `job_id` back immediately, poll for status, retrieve results once complete. This is the same pattern used in production ML serving systems.
 
 ---
 
@@ -110,7 +110,7 @@ pytest tests -v
 | Method   | Endpoint                | Description                                        |
 |----------|-------------------------|----------------------------------------------------|
 | `GET`    | `/health`               | Check if the API is running                        |
-| `POST`   | `/calculate`            | Submit a pipeline run — returns `job_id` immediately |
+| `POST`   | `/calculate`            | Submit a pipeline run, returns `job_id` immediately |
 | `GET`    | `/runs/{run_id}/status` | Poll run status: pending / running / complete / failed |
 | `GET`    | `/results/{run_id}`     | Fetch results from SQL by MLflow run ID            |
 | `GET`    | `/runs`                 | List all past runs                                 |
@@ -138,7 +138,7 @@ All parameters are passed through the React dashboard or directly in the `POST /
 
 For manual backend testing, add JSON configs to `productionPredictionCalculator/tests/` (e.g. `testCase01.json`). The `tests/in_jsons/` folder is reserved for pytest CI fixtures only.
 
-**Azure ML** — to route MLflow tracking to an Azure ML workspace instead of the local server, set these environment variables (leave blank for local dev):
+**Azure ML:** to route MLflow tracking to an Azure ML workspace instead of the local server, set these environment variables (leave blank for local dev):
 
 ```
 AZURE_SUBSCRIPTION_ID
@@ -163,7 +163,7 @@ Everything saves to `Figures and Results/` and is logged to MLflow as artifacts:
 
 **BNN model** *(when `run_bnn=1`):* `BNN_Convergence_*.png`, `BNN_Uncertainty_*.png`, `BNN_PostBurnin_Distributions_*.png` *(R², RMSE, MAPE histograms across posterior samples)*, BNN SHAP plots
 
-**Comparison** *(when `run_bnn=1`):* `RF_vs_BNN_Comparison_*.png` — RF point estimates vs BNN posterior mean ± 1σ
+**Comparison** *(when `run_bnn=1`):* `RF_vs_BNN_Comparison_*.png` showing RF point estimates vs BNN posterior mean ± 1σ
 
 ---
 
@@ -173,20 +173,20 @@ Everything saves to `Figures and Results/` and is logged to MLflow as artifacts:
 Production-Prediction-ML/
 ├── .devcontainer/devcontainer.json     # Dev container config (ports 3000, 5000, 8000)
 ├── .github/workflows/
-│   ├── ci.yml                          # GitHub Actions CI — builds Docker stack, runs pytest
-│   └── cd.yml                          # CD placeholder — wired up in Sprint 4
+│   ├── ci.yml                          # GitHub Actions CI, builds Docker stack, runs pytest
+│   └── cd.yml                          # CD placeholder, wired up in Sprint 4
 ├── frontend/                           # React dashboard (Vite + React 18)
 │   └── src/App.jsx                     # Pipeline, Jobs, Results, History, Health tabs
 ├── productionPredictionCalculator/
-│   ├── Calculator.py                   # Orchestrator — asyncio.gather for RF + BNN
+│   ├── Calculator.py                   # Orchestrator, asyncio.gather for RF + BNN
 │   ├── Data/                           # Synthetic well dataset + README
 │   ├── tests/                          # Dev test cases (testCase01.json etc.)
 │   └── utils/
-│       ├── utils.py                    # All pipeline logic — clustering, RF, BNN, plots
+│       ├── utils.py                    # All pipeline logic: clustering, RF, BNN, plots
 │       ├── bnn_pt.py                   # PyTorch BNN + Langevin MCMC
 │       ├── bnn_tf.py                   # TensorFlow BNN + Langevin MCMC
 │       ├── shapAnalysis.py             # SHAP for RF and BNN
-│       ├── mlFlowConfig.py             # MLflow — local / Docker / Azure ML
+│       ├── mlFlowConfig.py             # MLflow: local / Docker / Azure ML
 │       ├── azureConfig.py              # Azure ML URI builder
 │       ├── dbConfig.py                 # SQLite / PostgreSQL
 │       ├── inputWrapper.py             # JSON input parser
@@ -195,7 +195,7 @@ Production-Prediction-ML/
 │   ├── in_jsons/                       # pytest input fixtures
 │   ├── out_jsons/                      # pytest output fixtures
 │   └── test_calculator.py             # pytest suite
-├── api.py                              # FastAPI — 6 endpoints, async job pattern
+├── api.py                              # FastAPI, 6 endpoints, async job pattern
 ├── conftest.py                         # pytest path config
 ├── Dockerfile                          # Python 3.11 + Node 20
 ├── Dockerfile.mlflow                   # MLflow server
@@ -224,9 +224,9 @@ Elsevier. https://doi.org/10.1016/B978-0-32-399593-1.00016-1
 
 ---
 
-## Dataset
+## Data
 
-Synthetic unconventional reservoir dataset from [Michael J. Pyrcz (GeostatsGuy)](https://github.com/GeostatsGuy/GeoDataSets) — 1,000 wells with petrophysical and spatial features. See `Data/README.md` for details.
+Synthetic unconventional reservoir dataset from [Michael J. Pyrcz (GeostatsGuy)](https://github.com/GeostatsGuy/GeoDataSets) covering 1,000 wells with petrophysical and spatial features. See `Data/README.md` for details.
 
 ---
 
